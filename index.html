@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recipe Collection</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream:      #FDF6EC;
+      --warm-white: #FFFAF4;
+      --coffee:     #6F4E37;
+      --espresso:   #3D2B1F;
+      --caramel:    #C8913F;
+      --caramel-lt: #F0D9B5;
+      --border:     #E8D5B7;
+      --muted:      #9C7A5A;
+      --shadow:     rgba(61, 43, 31, 0.12);
+    }
+
+    body {
+      background: var(--cream);
+      color: var(--espresso);
+      font-family: Georgia, 'Times New Roman', serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #3D2B1F 0%, #6F4E37 55%, #8B6045 100%);
+      color: var(--cream);
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .header-inner { position: relative; }
+    .header-eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--caramel-lt);
+      margin-bottom: 0.5rem;
+    }
+    .header-title {
+      font-size: 2.6rem;
+      font-weight: normal;
+      letter-spacing: 0.01em;
+      margin-bottom: 0.4rem;
+    }
+    .header-sub {
+      font-style: italic;
+      color: #D4B896;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Live badge ── */
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+      color: rgba(253, 246, 236, 0.65);
+      font-style: normal;
+      transition: color 0.3s;
+    }
+    .live-badge.on { color: rgba(110, 231, 183, 0.9); }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .live-badge.on .live-dot { animation: pulse-dot 2.2s ease-in-out infinite; }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.45; transform: scale(0.75); }
+    }
+
+    /* ── Layout ── */
+    .main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .app-body {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1.75rem;
+    }
+    .content { flex: 1; min-width: 0; }
+
+    /* ── Category Sidebar ── */
+    .sidebar {
+      width: 185px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 1.5rem;
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .sidebar-heading {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.85rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--espresso);
+      border-left: 3px solid transparent;
+      transition: background 0.12s;
+      user-select: none;
+    }
+    .sidebar-item:hover { background: #F5EDE0; }
+    .sidebar-item.active {
+      background: #F0E3D0;
+      border-left-color: var(--caramel);
+      color: var(--coffee);
+      font-weight: 600;
+    }
+    .sidebar-count {
+      font-size: 0.7rem;
+      background: var(--caramel-lt);
+      color: var(--muted);
+      padding: 0.1rem 0.45rem;
+      border-radius: 10px;
+      min-width: 1.5rem;
+      text-align: center;
+    }
+    .sidebar-item.active .sidebar-count { background: var(--caramel); color: #fff; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .recipe-count { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.55rem 1.15rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.875rem;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--coffee);
+      color: var(--cream);
+      box-shadow: 0 2px 6px rgba(61,43,31,0.25);
+    }
+    .btn-primary:hover { background: var(--espresso); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--coffee);
+      border: 1.5px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--coffee); background: #F5EDE0; }
+    .btn-danger { background: #FBE9E7; color: #922B1E; border: 1px solid #F5C6C1; }
+    .btn-danger:hover { background: #F5C6C1; }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.8rem; border-radius: 6px; }
+
+    /* ── Recipe Grid ── */
+    .recipe-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    /* ── Ingredient Filter ── */
+    .ingredient-filter {
+      border-top: 1px solid var(--border);
+      padding: 0.75rem 0 0;
+      margin-top: 0.75rem;
+    }
+    .filter-heading {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 1rem 0.5rem;
+    }
+    .filter-search {
+      width: calc(100% - 2rem);
+      padding: 0.35rem 0.8rem;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0 1rem 0.5rem;
+      background: var(--cream);
+      color: var(--espresso);
+    }
+    .ingredient-list {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 0 0.5rem;
+    }
+    .ingredient-check {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 1rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+      user-select: none;
+    }
+    .ingredient-check input {
+      cursor: pointer;
+      accent-color: var(--caramel);
+    }
+    .ingredient-check:hover { background: #F5EDE0; }
+
+    /* ── Recipe Card ── */
+    .recipe-card {
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 2px 10px var(--shadow);
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .recipe-card:hover { box-shadow: 0 8px 28px var(--shadow); transform: translateY(-3px); }
+
+    .card-top {
+      background: linear-gradient(160deg, #F7EDE0 0%, #EDD9C0 100%);
+      padding: 1.25rem 1.4rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-category {
+      display: inline-block;
+      padding: 0.2rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+    .match-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-left: 0.3rem;
+    }
+    .match-full    { background: #DCF0D8; color: #1E5A20; }
+    .match-partial { background: #FCE8D0; color: #7D3208; }
+    .card-meta-row { margin-bottom: 0.6rem; }
+    .card-title { font-size: 1.15rem; color: var(--espresso); line-height: 1.3; margin-bottom: 0.35rem; }
+    .card-desc  { color: var(--muted); font-size: 0.83rem; font-style: italic; line-height: 1.45; }
+
+    .card-footer {
+      margin-top: auto;
+      padding: 0.75rem 1.4rem;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Expanded Details ── */
+    .card-details {
+      padding: 0.9rem 1.4rem;
+      border-top: 1px solid var(--border);
+      animation: slideDown 0.2s ease;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .detail-section + .detail-section { margin-top: 1rem; }
+    .detail-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--caramel);
+      margin-bottom: 0.45rem;
+    }
+    .ing-list { list-style: none; }
+    .ing-list li {
+      position: relative;
+      padding: 0.18rem 0 0.18rem 1rem;
+      font-size: 0.875rem;
+      color: var(--espresso);
+      line-height: 1.5;
+    }
+    .ing-list li::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      color: var(--caramel);
+      font-size: 1.2rem;
+      line-height: 1.2;
+    }
+    .instructions {
+      font-size: 0.875rem;
+      line-height: 1.75;
+      color: var(--espresso);
+      white-space: pre-wrap;
+    }
+
+    /* ── Category Colours ── */
+    .tag-pastries    { background: #FDECD3; color: #8B4A0A; }
+    .tag-drinks      { background: #DDD5CC; color: #3D2414; }
+    .tag-baking      { background: #FCE8D0; color: #7D3208; }
+    .tag-breakfast   { background: #FDF2CC; color: #7A5A00; }
+    .tag-desserts    { background: #F9E0DC; color: #8B2020; }
+    .tag-main        { background: #D8EDD8; color: #2A5A2A; }
+    .tag-meats       { background: #F0DDD5; color: #7A2510; }
+    .tag-salads      { background: #E5EDD8; color: #3A5A1A; }
+    .tag-veg         { background: #DCF0D8; color: #1E5A20; }
+    .tag-soups       { background: #FDEBD3; color: #7A4010; }
+    .tag-pasta       { background: #FDF5D0; color: #7A6000; }
+    .tag-seafood     { background: #D8EBF0; color: #1A4A5A; }
+    .tag-snacks      { background: #F5E8D0; color: #6A4A10; }
+    .tag-sides       { background: #ECE5D8; color: #5A4530; }
+    .tag-appetizers  { background: #F0E8D5; color: #5A3A10; }
+    .tag-other       { background: var(--caramel-lt); color: var(--coffee); }
+
+    /* ── Empty State ── */
+    .empty { text-align: center; padding: 5rem 2rem; color: var(--muted); }
+    .empty-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+    .empty p { font-style: italic; }
+
+    /* ── Loading / Error ── */
+    .status-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 45vh;
+      gap: 1.2rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--caramel);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .err-text { color: #922B1E; font-style: normal; font-size: 0.9rem; text-align: center; }
+
+    /* ── Setup Screen ── */
+    .setup-card {
+      max-width: 680px;
+      margin: 3rem auto;
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+    .setup-title { font-size: 1.4rem; color: var(--espresso); margin-bottom: 0.6rem; }
+    .setup-sub { color: var(--muted); font-style: italic; font-size: 0.88rem; line-height: 1.65; margin-bottom: 1.5rem; }
+    .setup-steps { list-style: none; counter-reset: s; margin-bottom: 1.5rem; }
+    .setup-steps li {
+      counter-increment: s;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8rem;
+      padding: 0.45rem 0;
+      font-size: 0.875rem;
+      color: var(--espresso);
+    }
+    .setup-steps li::before {
+      content: counter(s);
+      min-width: 22px; height: 22px;
+      background: var(--caramel); color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
+    }
+    .sql-wrap { position: relative; margin-bottom: 1.5rem; }
+    .sql-block {
+      display: block;
+      background: #1E1410;
+      color: #E8D5B7;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      line-height: 1.75;
+      white-space: pre;
+      overflow-x: auto;
+      margin: 0;
+    }
+    .sql-copy {
+      position: absolute;
+      top: 0.65rem; right: 0.65rem;
+      background: rgba(200, 145, 63, 0.2);
+      color: var(--caramel-lt);
+      border: 1px solid rgba(200, 145, 63, 0.35);
+      border-radius: 5px;
+      padding: 0.18rem 0.55rem;
+      font-size: 0.68rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .sql-copy:hover { background: rgba(200, 145, 63, 0.35); }
+
+    /* ── Form Overlay ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(40, 24, 14, 0.55);
+      backdrop-filter: blur(2px);
+      z-index: 200;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+      overflow-y: auto;
+    }
+    .form-card {
+      background: var(--warm-white);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 24px 64px rgba(40, 24, 14, 0.35);
+      margin: auto;
+    }
+    .form-heading {
+      font-size: 1.45rem;
+      color: var(--espresso);
+      padding-bottom: 0.85rem;
+      margin-bottom: 1.4rem;
+      border-bottom: 2px solid var(--border);
+    }
+    .form-group { margin-bottom: 1.15rem; }
+    .form-label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    .form-ctrl {
+      width: 100%;
+      padding: 0.6rem 0.85rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      background: var(--cream);
+      color: var(--espresso);
+      font-family: inherit;
+      font-size: 0.875rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-ctrl:focus {
+      outline: none;
+      border-color: var(--caramel);
+      box-shadow: 0 0 0 3px rgba(200, 145, 63, 0.15);
+    }
+    textarea.form-ctrl { resize: vertical; min-height: 100px; }
+
+    /* ── Ingredient Builder ── */
+    .ing-builder {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      background: var(--cream);
+      padding: 0.6rem;
+      transition: border-color 0.15s;
+    }
+    .ing-builder:focus-within { border-color: var(--caramel); }
+    .ing-chip {
+      display: flex;
+      align-items: center;
+      padding: 0.28rem 0.5rem 0.28rem 0.6rem;
+      margin-bottom: 0.25rem;
+      background: #F0E0CC;
+      border-radius: 6px;
+      font-size: 0.84rem;
+      color: var(--espresso);
+      gap: 0.5rem;
+    }
+    .ing-chip-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ing-search-tag {
+      width: 82px;
+      flex-shrink: 0;
+      padding: 0.1rem 0.4rem;
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+      background: rgba(253,246,236,0.8);
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-family: inherit;
+      font-style: italic;
+      transition: border-color 0.15s;
+    }
+    .ing-search-tag:focus {
+      outline: none;
+      border: 1px solid var(--caramel);
+      color: var(--espresso);
+      font-style: normal;
+      background: var(--cream);
+    }
+    .ing-search-tag::placeholder { color: #C8A880; font-style: italic; }
+    .ing-remove {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 1.1rem; line-height: 1;
+      padding: 0 0.1rem; transition: color 0.12s;
+    }
+    .ing-remove:hover { color: #922B1E; }
+    .ing-add-row { display: flex; gap: 0.5rem; margin-top: 0.3rem; }
+    .ing-add-row .form-ctrl { margin: 0; }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 680px) {
+      .header-title { font-size: 2rem; }
+      .main { padding: 1rem; }
+      .app-body { flex-direction: column; padding: 1rem; gap: 1rem; }
+      .sidebar {
+        width: 100%;
+        position: static;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 10px;
+      }
+      .sidebar-heading { display: none; }
+      .sidebar-item {
+        border-left: none;
+        border-radius: 20px;
+        padding: 0.28rem 0.75rem;
+        font-size: 0.8rem;
+        border: 1.5px solid var(--border);
+      }
+      .sidebar-item.active {
+        background: var(--coffee);
+        color: var(--cream);
+        border-color: var(--coffee);
+      }
+      .sidebar-item.active .sidebar-count { background: rgba(255,255,255,0.25); color: var(--cream); }
+      .recipe-grid { grid-template-columns: 1fr; }
+      .ingredient-filter { border-top: none; padding: 0.5rem 0 0; margin-top: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const { createClient } = supabase;
+
+    const SUPABASE_URL = 'https://bbozmdumdvefwtsfkjho.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJib3ptZHVtZHZlZnd0c2ZramhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1MDI4NzgsImV4cCI6MjA5NjA3ODg3OH0.6b4kdxxu6iQAyTeZ4BHh7stdjTCCr7jtLEKPv6VgGpY';
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const SETUP_SQL =
+`-- Run once in Supabase → SQL Editor → New Query
+
+create table if not exists public.recipes (
+  id           uuid        default gen_random_uuid() primary key,
+  title        text        not null,
+  description  text        default '',
+  category     text        default 'Other',
+  ingredients  jsonb       default '[]'::jsonb,
+  instructions text        default '',
+  created_at   timestamptz default now()
+);
+
+-- Allow open read/write (shared app, no login required)
+alter table public.recipes disable row level security;
+
+-- Enable real-time sync between users
+alter publication supabase_realtime add table public.recipes;
+alter table public.recipes replica identity full;`;
+
+    const CATEGORY_CLASS = {
+      'Pastries':    'tag-pastries',
+      'Drinks':      'tag-drinks',
+      'Baking':      'tag-baking',
+      'Breakfast':   'tag-breakfast',
+      'Desserts':    'tag-desserts',
+      'Main Course': 'tag-main',
+      'Meats':       'tag-meats',
+      'Salads':      'tag-salads',
+      'Vegetarian':  'tag-veg',
+      'Soups':       'tag-soups',
+      'Pasta':       'tag-pasta',
+      'Seafood':     'tag-seafood',
+      'Snacks':      'tag-snacks',
+      'Side Dishes': 'tag-sides',
+      'Sides':       'tag-sides',
+      'Appetizers':  'tag-appetizers',
+    };
+    const tagClass = (cat) => CATEGORY_CLASS[cat] || 'tag-other';
+
+    function isTableMissing(err) {
+      return (
+        err.code === '42P01' || err.code === 'PGRST200' ||
+        (err.message && (err.message.includes('does not exist') || err.message.includes('schema cache')))
+      );
+    }
+
+    /* Strip quantities/units from ingredient strings to get a usable search name.
+       e.g. "1 large egg" → "egg", "100g almond flour" → "almond flour" */
+    function normalizeIng(raw) {
+      let s = raw.toLowerCase().trim();
+      for (let pass = 0; pass < 3; pass++) {
+        s = s
+          .replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞.,/×x+\-]+/, '')
+          .replace(/^(a|an)\s+/, '')
+          .replace(/^(cups?|tbsps?|tsps?|tablespoons?|teaspoons?|grams?|kg|oz|ounces?|ml|liters?|lbs?|pounds?|cloves?|pinch|handful|bunch|large|medium|small|cans?|packages?|packets?|slices?|pieces?|strips?|sprigs?|dashes?|drops?)\s+(of\s+)?/i, '')
+          .trim();
+      }
+      return s
+        .replace(/\s*\([^)]*\)/g, '')
+        .replace(/,\s*(optional|to taste|room temperature|softened|diced|chopped|minced|sliced|grated|shredded|crumbled|peeled|fresh|dried|frozen|cooked|uncooked|cooled|melted|beaten|sifted|divided|roughly|finely).*$/i, '')
+        .replace(/,.*$/, '')
+        .trim();
+    }
+
+    /* ── Header ──────────────────────────────────────── */
+    function AppHeader({ connected }) {
+      return (
+        <header className="header">
+          <div className="header-inner">
+            <p className="header-eyebrow">☕ Your Kitchen Collection</p>
+            <h1 className="header-title">Recipe Collection</h1>
+            <p className="header-sub">A warm place for your favourite recipes</p>
+            <span className={`live-badge ${connected ? 'on' : ''}`}>
+              <span className="live-dot" />
+              {connected ? 'Live sync' : 'Connecting…'}
+            </span>
+          </div>
+        </header>
+      );
+    }
+
+    /* ── Recipe Card ─────────────────────────────────── */
+    function RecipeCard({ recipe, onDelete, onEdit, matchCount, totalSelected }) {
+      const [open, setOpen] = useState(false);
+      const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+
+      return (
+        <article className="recipe-card">
+          <div className="card-top">
+            <div className="card-meta-row">
+              <span className={`card-category ${tagClass(recipe.category)}`}>{recipe.category}</span>
+              {totalSelected > 0 && matchCount > 0 && (
+                <span className={`match-badge ${matchCount >= totalSelected ? 'match-full' : 'match-partial'}`}>
+                  {matchCount >= totalSelected ? '✓' : '~'} {matchCount}/{totalSelected}
+                </span>
+              )}
+            </div>
+            <h2 className="card-title">{recipe.title}</h2>
+            {recipe.description && <p className="card-desc">{recipe.description}</p>}
+          </div>
+
+          {open && (
+            <div className="card-details">
+              {ingredients.length > 0 && (
+                <div className="detail-section">
+                  <div className="detail-label">Ingredients</div>
+                  <ul className="ing-list">
+                    {ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
+                  </ul>
+                </div>
+              )}
+              {recipe.instructions && (
+                <div className="detail-section">
+                  <div className="detail-label">Instructions</div>
+                  <p className="instructions">{recipe.instructions}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="card-footer">
+            <button className="btn btn-ghost btn-sm" onClick={() => setOpen(o => !o)}>
+              {open ? 'Collapse' : 'View Recipe'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => onEdit(recipe)}>
+              Edit
+            </button>
+            <button className="btn btn-danger btn-sm" onClick={() => onDelete(recipe.id)}>
+              Delete
+            </button>
+          </div>
+        </article>
+      );
+    }
+
+    /* ── Setup Screen ────────────────────────────────── */
+    function SetupScreen({ onRetry }) {
+      const [copied, setCopied] = useState(false);
+      const copy = () => {
+        navigator.clipboard.writeText(SETUP_SQL).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      };
+      return (
+        <main className="main">
+          <div className="setup-card">
+            <h2 className="setup-title">One-time Database Setup</h2>
+            <p className="setup-sub">
+              The <code>recipes</code> table doesn't exist yet in your Supabase project.
+              Run the SQL below once and you're all set.
+            </p>
+            <ol className="setup-steps">
+              <li>Open your <strong>Supabase dashboard</strong> and go to <strong>SQL Editor</strong></li>
+              <li>Click <strong>New query</strong>, paste the SQL below, and run it</li>
+              <li>Come back here and click <strong>Retry</strong></li>
+            </ol>
+            <div className="sql-wrap">
+              <pre className="sql-block">{SETUP_SQL}</pre>
+              <button className="sql-copy" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
+            </div>
+            <button className="btn btn-primary" onClick={onRetry}>Retry Connection</button>
+          </div>
+        </main>
+      );
+    }
+
+    /* ── Category Sidebar ───────────────────────────── */
+    function CategorySidebar({ recipes, selected, onSelect }) {
+      const categories = React.useMemo(() => {
+        const counts = {};
+        recipes.forEach(r => { counts[r.category] = (counts[r.category] || 0) + 1; });
+        return Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
+      }, [recipes]);
+
+      return (
+        <>
+          <div className="sidebar-heading">Categories</div>
+          <div
+            className={`sidebar-item${selected === null ? ' active' : ''}`}
+            onClick={() => onSelect(null)}
+          >
+            <span>All</span>
+            <span className="sidebar-count">{recipes.length}</span>
+          </div>
+          {categories.map(([cat, count]) => (
+            <div
+              key={cat}
+              className={`sidebar-item${selected === cat ? ' active' : ''}`}
+              onClick={() => onSelect(cat)}
+            >
+              <span>{cat}</span>
+              <span className="sidebar-count">{count}</span>
+            </div>
+          ))}
+        </>
+      );
+    }
+
+    /* ── Ingredient Filter ──────────────────────────── */
+    function IngredientFilter({ allIngredients, selected, onToggle, onClearAll }) {
+      const [search, setSearch] = useState('');
+      const filtered = allIngredients.filter(ing => ing.toLowerCase().includes(search.toLowerCase()));
+
+      return (
+        <div className="ingredient-filter">
+          <div className="filter-heading">My Ingredients</div>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="filter-search"
+          />
+          <div className="ingredient-list">
+            {filtered.map(ing => (
+              <label key={ing} className="ingredient-check">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(ing)}
+                  onChange={() => onToggle(ing)}
+                />
+                <span>{ing}</span>
+              </label>
+            ))}
+          </div>
+          {selected.length > 0 && (
+            <div style={{padding: '0.5rem 1rem', borderTop: '1px solid var(--border)', marginTop: '0.5rem'}}>
+              <button className="btn btn-sm btn-ghost" style={{width: '100%'}} onClick={onClearAll}>
+                Clear ({selected.length})
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ── Recipe Form (add + edit) ────────────────────── */
+    function RecipeForm({ initialData, onSave, onClose }) {
+      const isEdit = !!initialData;
+      const [title, setTitle]               = useState(initialData?.title || '');
+      const [desc, setDesc]                 = useState(initialData?.description || '');
+      const [category, setCategory]         = useState(initialData?.category || 'Baking');
+      const [ingredients, setIngredients]   = useState(initialData?.ingredients || []);
+      const [searchTags, setSearchTags]     = useState(() => {
+        if (!initialData) return [];
+        const tags = initialData.search_ingredients || [];
+        return tags.length > 0 ? tags : (initialData.ingredients || []).map(normalizeIng);
+      });
+      const [ingInput, setIngInput]         = useState('');
+      const [instructions, setInstructions] = useState(initialData?.instructions || '');
+      const ingRef = useRef(null);
+
+      const commitIng = () => {
+        const v = ingInput.trim();
+        if (!v) return;
+        setIngredients(prev => [...prev, v]);
+        setSearchTags(prev => [...prev, normalizeIng(v)]);
+        setIngInput('');
+        ingRef.current?.focus();
+      };
+
+      const removeIng = (i) => {
+        setIngredients(prev => prev.filter((_, j) => j !== i));
+        setSearchTags(prev => prev.filter((_, j) => j !== i));
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!title.trim()) return;
+        onSave({
+          ...(isEdit ? { id: initialData.id } : {}),
+          title: title.trim(), description: desc.trim(), category, ingredients,
+          search_ingredients: searchTags.map(t => t.trim()).filter(Boolean),
+          instructions: instructions.trim(),
+        });
+        onClose();
+      };
+
+      return (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+          <div className="form-card">
+            <h2 className="form-heading">{isEdit ? 'Edit Recipe' : 'Add New Recipe'}</h2>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label className="form-label">Title *</label>
+                <input className="form-ctrl" value={title} onChange={e => setTitle(e.target.value)}
+                  placeholder="e.g. Lavender Shortbread Cookies" required autoFocus />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Short Description</label>
+                <input className="form-ctrl" value={desc} onChange={e => setDesc(e.target.value)}
+                  placeholder="A single enticing sentence about this dish" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Category</label>
+                <select className="form-ctrl" value={category} onChange={e => setCategory(e.target.value)}>
+                  <option>Appetizers</option><option>Baking</option><option>Breakfast</option>
+                  <option>Desserts</option><option>Drinks</option><option>Main Course</option>
+                  <option>Meats</option><option>Pasta</option><option>Pastries</option>
+                  <option>Salads</option><option>Seafood</option><option>Side Dishes</option>
+                  <option>Snacks</option><option>Soups</option><option>Vegetarian</option><option>Other</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:'0.4rem'}}>
+                  <label className="form-label" style={{marginBottom:0}}>Ingredients</label>
+                  <span style={{fontSize:'0.68rem', color:'var(--muted)', fontStyle:'italic'}}>full text · filter name →</span>
+                </div>
+                <div className="ing-builder">
+                  {ingredients.map((ing, i) => (
+                    <div key={i} className="ing-chip">
+                      <span className="ing-chip-label" title={ing}>{ing}</span>
+                      <input
+                        className="ing-search-tag"
+                        value={searchTags[i] || ''}
+                        onChange={e => setSearchTags(prev => prev.map((t, j) => j === i ? e.target.value : t))}
+                        placeholder="e.g. egg"
+                        title="Searchable name used in the ingredient filter"
+                      />
+                      <button type="button" className="ing-remove" onClick={() => removeIng(i)}>×</button>
+                    </div>
+                  ))}
+                  <div className="ing-add-row">
+                    <input className="form-ctrl" ref={ingRef} value={ingInput}
+                      onChange={e => setIngInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitIng(); } }}
+                      placeholder="e.g. 2 cups flour — Enter to add" />
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={commitIng}
+                      style={{whiteSpace:'nowrap'}}>+ Add</button>
+                  </div>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Instructions</label>
+                <textarea className="form-ctrl" value={instructions} onChange={e => setInstructions(e.target.value)}
+                  placeholder="Walk through the steps. Blank lines create natural paragraph breaks." rows={6} />
+              </div>
+              <div className="form-actions">
+                <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+                <button type="submit" className="btn btn-primary">{isEdit ? 'Save Changes' : 'Save Recipe'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── App ─────────────────────────────────────────── */
+    function App() {
+      const [recipes,             setRecipes]             = useState([]);
+      const [status,              setStatus]              = useState('loading'); // loading | setup | error | ready
+      const [errMsg,              setErrMsg]              = useState('');
+      const [connected,           setConnected]           = useState(false);
+      const [showForm,            setShowForm]            = useState(false);
+      const [editingRecipe,       setEditingRecipe]       = useState(null);
+      const [retryKey,            setRetryKey]            = useState(0);
+      const [selectedCat,         setSelectedCat]         = useState(null);
+      const [selectedIngredients, setSelectedIngredients] = useState([]);
+
+      useEffect(() => {
+        let channel = null;
+        let dead    = false;
+
+        async function init() {
+          setStatus('loading');
+          setConnected(false);
+
+          // ── Fetch existing recipes ──────────────────
+          const { data, error } = await db
+            .from('recipes')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (dead) return;
+
+          if (error) {
+            if (isTableMissing(error)) { setStatus('setup'); }
+            else { setErrMsg(error.message); setStatus('error'); }
+            return;
+          }
+
+          if (dead) return;
+          setRecipes(data);
+          setStatus('ready');
+
+          // ── Subscribe to real-time AFTER load ───────
+          channel = db.channel(`recipes-${retryKey}`)
+            .on('postgres_changes',
+              { event: 'INSERT', schema: 'public', table: 'recipes' },
+              ({ new: r }) => { if (!dead) setRecipes(prev => [r, ...prev]); }
+            )
+            .on('postgres_changes',
+              { event: 'UPDATE', schema: 'public', table: 'recipes' },
+              ({ new: r }) => { if (!dead) setRecipes(prev => prev.map(x => x.id === r.id ? r : x)); }
+            )
+            .on('postgres_changes',
+              { event: 'DELETE', schema: 'public', table: 'recipes' },
+              ({ old: r }) => { if (!dead) setRecipes(prev => prev.filter(x => x.id !== r.id)); }
+            )
+            .subscribe(s => { if (!dead) setConnected(s === 'SUBSCRIBED'); });
+        }
+
+        init();
+        return () => {
+          dead = true;
+          if (channel) { db.removeChannel(channel); }
+        };
+      }, [retryKey]);
+
+      const addRecipe = async (r) => {
+        const { error } = await db.from('recipes').insert([{
+          title: r.title, description: r.description,
+          category: r.category, ingredients: r.ingredients,
+          search_ingredients: r.search_ingredients || [],
+          instructions: r.instructions,
+        }]);
+        if (error) alert('Could not save recipe: ' + error.message);
+      };
+
+      const updateRecipe = async (r) => {
+        const { error } = await db.from('recipes').update({
+          title: r.title, description: r.description,
+          category: r.category, ingredients: r.ingredients,
+          search_ingredients: r.search_ingredients || [],
+          instructions: r.instructions,
+        }).eq('id', r.id);
+        if (error) alert('Could not update recipe: ' + error.message);
+      };
+
+      const deleteRecipe = async (id) => {
+        const { error } = await db.from('recipes').delete().eq('id', id);
+        if (error) alert('Could not delete recipe: ' + error.message);
+      };
+
+      const closeForm = () => { setShowForm(false); setEditingRecipe(null); };
+
+      const retry = () => setRetryKey(k => k + 1);
+
+      const allIngredients = React.useMemo(() => {
+        const set = new Set();
+        recipes.forEach(r => {
+          const tags = Array.isArray(r.search_ingredients) ? r.search_ingredients : [];
+          if (tags.length > 0) {
+            tags.forEach(t => { if (t && t.trim()) set.add(t.trim().toLowerCase()); });
+          } else {
+            // Fallback for recipes without search_ingredients: auto-normalize
+            (r.ingredients || []).forEach(ing => {
+              const n = normalizeIng(ing);
+              if (n && n.length > 1) set.add(n);
+            });
+          }
+        });
+        return Array.from(set).sort();
+      }, [recipes]);
+
+      const toggleIngredient = (ing) => {
+        setSelectedIngredients(prev =>
+          prev.includes(ing) ? prev.filter(i => i !== ing) : [...prev, ing]
+        );
+      };
+
+      const recipeScores = React.useMemo(() => {
+        const scores = {};
+        recipes.forEach(r => {
+          const tags = Array.isArray(r.search_ingredients) && r.search_ingredients.length > 0
+            ? r.search_ingredients.map(t => t.trim().toLowerCase())
+            : (r.ingredients || []).map(normalizeIng).filter(Boolean);
+          const matchCount = selectedIngredients.filter(sel => tags.includes(sel)).length;
+          scores[r.id] = matchCount;
+        });
+        return scores;
+      }, [recipes, selectedIngredients]);
+
+      const filteredRecipes = React.useMemo(() => {
+        let result = selectedCat ? recipes.filter(r => r.category === selectedCat) : recipes;
+        if (selectedIngredients.length > 0) {
+          result = result.filter(r => recipeScores[r.id] > 0);
+          result = result.sort((a, b) => recipeScores[b.id] - recipeScores[a.id]);
+        }
+        return result;
+      }, [recipes, selectedCat, selectedIngredients, recipeScores]);
+
+      if (status === 'loading') return (
+        <>
+          <AppHeader connected={false} />
+          <main className="main">
+            <div className="status-screen">
+              <div className="spinner" />
+              <span>Connecting to your recipe collection…</span>
+            </div>
+          </main>
+        </>
+      );
+
+      if (status === 'setup') return (
+        <><AppHeader connected={false} /><SetupScreen onRetry={retry} /></>
+      );
+
+      if (status === 'error') return (
+        <>
+          <AppHeader connected={false} />
+          <main className="main">
+            <div className="status-screen">
+              <p className="err-text">Connection error: {errMsg}</p>
+              <button className="btn btn-primary" onClick={retry}>Retry</button>
+            </div>
+          </main>
+        </>
+      );
+
+      return (
+        <>
+          <AppHeader connected={connected} />
+          <div className="app-body">
+            <nav className="sidebar">
+              <CategorySidebar recipes={recipes} selected={selectedCat} onSelect={setSelectedCat} />
+              <IngredientFilter allIngredients={allIngredients} selected={selectedIngredients}
+                onToggle={toggleIngredient} onClearAll={() => setSelectedIngredients([])} />
+            </nav>
+            <main className="content">
+              <div className="toolbar">
+                <span className="recipe-count">
+                  {filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}
+                  {selectedCat ? ` in ${selectedCat}` : ' saved'}
+                  {selectedIngredients.length > 0 ? ` • ${selectedIngredients.length} ingredient${selectedIngredients.length === 1 ? '' : 's'}` : ''}
+                </span>
+                <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+                  + Add Recipe
+                </button>
+              </div>
+
+              {filteredRecipes.length === 0 ? (
+                <div className="empty">
+                  <div className="empty-icon">☕</div>
+                  <p>{selectedCat ? `No ${selectedCat} recipes yet.` : 'No recipes yet — add your first one above.'}</p>
+                </div>
+              ) : (
+                <div className="recipe-grid">
+                  {filteredRecipes.map(r => (
+                    <RecipeCard key={r.id} recipe={r} onDelete={deleteRecipe} onEdit={setEditingRecipe}
+                      matchCount={recipeScores[r.id]} totalSelected={selectedIngredients.length} />
+                  ))}
+                </div>
+              )}
+            </main>
+          </div>
+
+          {(showForm || editingRecipe) && (
+            <RecipeForm
+              initialData={editingRecipe}
+              onSave={editingRecipe ? updateRecipe : addRecipe}
+              onClose={closeForm}
+            />
+          )}
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
