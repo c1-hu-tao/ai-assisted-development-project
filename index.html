@@ -147,6 +147,21 @@
       text-align: center;
     }
     .sidebar-item.active .sidebar-count { background: var(--caramel); color: #fff; }
+    .sidebar-item-left { display: flex; align-items: center; gap: 0.3rem; flex: 1; min-width: 0; }
+    .dice-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.78rem;
+      padding: 0.1rem 0.2rem;
+      border-radius: 4px;
+      line-height: 1;
+      flex-shrink: 0;
+      opacity: 0.55;
+      transition: opacity 0.12s, transform 0.12s, background 0.12s;
+    }
+    .dice-btn:hover { opacity: 1; background: rgba(200,145,63,0.18); transform: scale(1.2); }
+    .dice-btn:active { transform: scale(0.9) rotate(20deg); }
 
     /* ── Toolbar ── */
     .toolbar {
@@ -242,7 +257,7 @@
 
     /* ── Recipe Card ── */
     .recipe-card {
-      background: var(--warm-white);
+      background: linear-gradient(160deg, #F7EDE0 0%, #EDD9C0 100%);
       border: 1px solid var(--border);
       border-radius: 14px;
       display: flex;
@@ -668,7 +683,7 @@ alter table public.recipes replica identity full;`;
       return (
         <header className="header">
           <div className="header-inner">
-            <p className="header-eyebrow">☕ Your Kitchen Collection</p>
+            <p className="header-eyebrow">☕ Your Kitchen</p>
             <h1 className="header-title">Recipe Collection</h1>
             <p className="header-sub">A warm place for your favourite recipes</p>
             <span className={`live-badge ${connected ? 'on' : ''}`}>
@@ -766,8 +781,46 @@ alter table public.recipes replica identity full;`;
       );
     }
 
+    /* ── Random Recipe Modal ────────────────────────── */
+    function RandomRecipeModal({ recipe, onClose }) {
+      const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+      return (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+          <div className="form-card" style={{maxWidth:'560px'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'0.75rem', paddingBottom:'0.85rem', marginBottom:'1.25rem', borderBottom:'2px solid var(--border)'}}>
+              <div>
+                <span className={`card-category ${tagClass(recipe.category)}`} style={{display:'inline-block', marginBottom:'0.5rem'}}>{recipe.category}</span>
+                <h2 style={{fontSize:'1.4rem', color:'var(--espresso)', fontWeight:'normal'}}>{recipe.title}</h2>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={onClose} style={{flexShrink:0}}>✕</button>
+            </div>
+            {recipe.description && (
+              <p className="card-desc" style={{marginBottom:'1rem'}}>{recipe.description}</p>
+            )}
+            {ingredients.length > 0 && (
+              <div className="detail-section">
+                <div className="detail-label">Ingredients</div>
+                <ul className="ing-list">
+                  {ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
+                </ul>
+              </div>
+            )}
+            {recipe.instructions && (
+              <div className="detail-section" style={{marginTop: ingredients.length > 0 ? '1rem' : 0}}>
+                <div className="detail-label">Instructions</div>
+                <p className="instructions">{recipe.instructions}</p>
+              </div>
+            )}
+            <div className="form-actions">
+              <button className="btn btn-ghost" onClick={onClose}>Close</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     /* ── Category Sidebar ───────────────────────────── */
-    function CategorySidebar({ recipes, selected, onSelect }) {
+    function CategorySidebar({ recipes, selected, onSelect, onRandom }) {
       const categories = React.useMemo(() => {
         const counts = {};
         recipes.forEach(r => { counts[r.category] = (counts[r.category] || 0) + 1; });
@@ -790,7 +843,14 @@ alter table public.recipes replica identity full;`;
               className={`sidebar-item${selected === cat ? ' active' : ''}`}
               onClick={() => onSelect(cat)}
             >
-              <span>{cat}</span>
+              <div className="sidebar-item-left">
+                <button
+                  className="dice-btn"
+                  title={`Random ${cat} recipe`}
+                  onClick={e => { e.stopPropagation(); onRandom(cat); }}
+                >🎲</button>
+                <span>{cat}</span>
+              </div>
               <span className="sidebar-count">{count}</span>
             </div>
           ))}
@@ -958,6 +1018,7 @@ alter table public.recipes replica identity full;`;
       const [retryKey,            setRetryKey]            = useState(0);
       const [selectedCat,         setSelectedCat]         = useState(null);
       const [selectedIngredients, setSelectedIngredients] = useState([]);
+      const [randomRecipe,        setRandomRecipe]        = useState(null);
 
       useEffect(() => {
         let channel = null;
@@ -1035,6 +1096,12 @@ alter table public.recipes replica identity full;`;
       };
 
       const closeForm = () => { setShowForm(false); setEditingRecipe(null); };
+
+      const pickRandom = (cat) => {
+        const pool = recipes.filter(r => r.category === cat);
+        if (pool.length === 0) return;
+        setRandomRecipe(pool[Math.floor(Math.random() * pool.length)]);
+      };;
 
       const retry = () => setRetryKey(k => k + 1);
 
@@ -1115,7 +1182,7 @@ alter table public.recipes replica identity full;`;
           <AppHeader connected={connected} />
           <div className="app-body">
             <nav className="sidebar">
-              <CategorySidebar recipes={recipes} selected={selectedCat} onSelect={setSelectedCat} />
+              <CategorySidebar recipes={recipes} selected={selectedCat} onSelect={setSelectedCat} onRandom={pickRandom} />
               <IngredientFilter allIngredients={allIngredients} selected={selectedIngredients}
                 onToggle={toggleIngredient} onClearAll={() => setSelectedIngredients([])} />
             </nav>
@@ -1153,6 +1220,9 @@ alter table public.recipes replica identity full;`;
               onSave={editingRecipe ? updateRecipe : addRecipe}
               onClose={closeForm}
             />
+          )}
+          {randomRecipe && (
+            <RandomRecipeModal recipe={randomRecipe} onClose={() => setRandomRecipe(null)} />
           )}
         </>
       );
