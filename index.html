@@ -269,9 +269,7 @@
     .recipe-card:hover { box-shadow: 0 8px 28px var(--shadow); transform: translateY(-3px); }
 
     .card-top {
-      background: linear-gradient(160deg, #F7EDE0 0%, #EDD9C0 100%);
       padding: 1.25rem 1.4rem 1.1rem;
-      border-bottom: 1px solid var(--border);
     }
     .card-category {
       display: inline-block;
@@ -303,7 +301,6 @@
       display: flex;
       justify-content: flex-end;
       gap: 0.5rem;
-      border-top: 1px solid var(--border);
     }
 
     /* ── Expanded Details ── */
@@ -741,7 +738,7 @@ alter table public.recipes replica identity full;`;
             <button className="btn btn-ghost btn-sm" onClick={() => onEdit(recipe)}>
               Edit
             </button>
-            <button className="btn btn-danger btn-sm" onClick={() => onDelete(recipe.id)}>
+            <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm('Delete this recipe?')) onDelete(recipe.id); }}>
               Delete
             </button>
           </div>
