@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import { db } from '../lib/supabase';
 import { tagClass } from '../utils/helpers';
-
-const SparkleIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/>
-  </svg>
-);
+import { SparkleIcon } from './icons';
 
 export default function MealSlotPicker({ day, mealType, currentRecipe, recipes, user, onAssign, onRemove, onSaveAndAssign, onClose }) {
   const [view,        setView]        = useState('pick'); // 'pick' | 'generate'

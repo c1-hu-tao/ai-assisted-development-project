@@ -1,4 +1,5 @@
 import { db } from '../lib/supabase';
+import { SparkleIcon } from './icons';
 
 export default function AppHeader({ connected, user, displayName, onSignIn, onEditProfile }) {
   const signOut = () => db.auth.signOut();

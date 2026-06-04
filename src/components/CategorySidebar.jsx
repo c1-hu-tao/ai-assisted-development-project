@@ -1,27 +1,6 @@
 import { useState, useMemo } from 'react';
 import { CATEGORIES, tagClass } from '../utils/helpers';
-
-const ShuffleIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="16 3 21 3 21 8"/>
-    <line x1="4" y1="20" x2="21" y2="3"/>
-    <polyline points="21 16 21 21 16 21"/>
-    <line x1="15" y1="15" x2="21" y2="21"/>
-  </svg>
-);
-
-const HeartIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-  </svg>
-);
-
-const ChevronIcon = ({ open }) => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-    style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.18s' }}>
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-);
+import { HeartIcon, ShuffleIcon, ChevronIcon } from './icons';
 
 export default function CategorySidebar({ recipes, selected, onSelect, onRandom, favouriteCount }) {
   const [expanded, setExpanded] = useState(null); // which main category is open
@@ -58,7 +37,7 @@ export default function CategorySidebar({ recipes, selected, onSelect, onRandom,
         className={`sidebar-item${selected === '__favourites__' ? ' active' : ''}`}
         onClick={() => onSelect('__favourites__')}
       >
-        <span className="sidebar-item-name sidebar-fav-label"><HeartIcon /> Favourites</span>
+        <span className="sidebar-item-name sidebar-fav-label"><HeartIcon filled /> Favourites</span>
         <div className="sidebar-item-right">
           <span className="sidebar-count">{favouriteCount}</span>
         </div>

@@ -674,6 +674,20 @@ textarea.form-ctrl { resize: vertical; min-height: 100px; }
   display: block;
 }
 .modal-body { padding: 2rem; }
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-bottom: 0.85rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--border);
+}
+.modal-category { display: inline-block; margin-bottom: 0.5rem; }
+.modal-title { font-size: 1.4rem; color: var(--espresso); font-weight: normal; }
+.modal-close { flex-shrink: 0; }
+.modal-desc { margin-bottom: 1rem; }
+.detail-section--spaced { margin-top: 1rem; }
 .modal-creator {
   position: absolute;
   bottom: 0;

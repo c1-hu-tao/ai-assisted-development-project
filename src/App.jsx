@@ -13,6 +13,7 @@ import AISuggestScreen from './components/AISuggestScreen';
 import ProfileModal from './components/ProfileModal';
 import MealPlannerPage from './components/MealPlannerPage';
 import TabNav from './components/TabNav';
+import { SparkleIcon } from './components/icons';
 
 const FAV_KEY = (userId) => `recipe-favs-${userId ?? 'guest'}`;
 
@@ -70,24 +71,19 @@ export default function App() {
     });
   };
 
+  const applySession = (session) => {
+    const u = session?.user ?? null;
+    setUser(u);
+    setIsAdmin(u?.app_metadata?.role === 'admin');
+    userIdRef.current = u?.id ?? null;
+    setFavourites(loadFavourites(u?.id));
+    upsertProfile(u);
+  };
+
   // Track auth session and reload favourites when user changes
   useEffect(() => {
-    db.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      setIsAdmin(u?.app_metadata?.role === 'admin');
-      userIdRef.current = u?.id ?? null;
-      setFavourites(loadFavourites(u?.id));
-      upsertProfile(u);
-    });
-    const { data: { subscription } } = db.auth.onAuthStateChange((_event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      setIsAdmin(u?.app_metadata?.role === 'admin');
-      userIdRef.current = u?.id ?? null;
-      setFavourites(loadFavourites(u?.id));
-      upsertProfile(u);
-    });
+    db.auth.getSession().then(({ data: { session } }) => applySession(session));
+    const { data: { subscription } } = db.auth.onAuthStateChange((_event, session) => applySession(session));
     return () => subscription.unsubscribe();
   }, []);
 
@@ -373,8 +369,8 @@ export default function App() {
               {selectedIngredients.length > 0 ? ` • ${selectedIngredients.length} ingredient${selectedIngredients.length === 1 ? '' : 's'}` : ''}
             </span>
             <div className="toolbar-actions">
-              <button className="btn btn-ghost" onClick={() => setPage('suggest')}>
-                ✦ Suggest Recipe
+              <button className="btn btn-ghost" onClick={() => setPage('suggest')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <SparkleIcon size={13} /> Suggest Recipe
               </button>
               <button className="btn btn-primary" onClick={handleAddClick}>
                 + Add Recipe
