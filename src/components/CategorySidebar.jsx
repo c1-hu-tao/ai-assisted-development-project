@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { CATEGORIES, tagClass } from '../utils/helpers';
 
 const ShuffleIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -15,12 +16,38 @@ const HeartIcon = () => (
   </svg>
 );
 
+const ChevronIcon = ({ open }) => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.18s' }}>
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+
 export default function CategorySidebar({ recipes, selected, onSelect, onRandom, favouriteCount }) {
-  const categories = useMemo(() => {
-    const counts = {};
-    recipes.forEach(r => { counts[r.category] = (counts[r.category] || 0) + 1; });
-    return Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
+  const [expanded, setExpanded] = useState(null); // which main category is open
+
+  const counts = useMemo(() => {
+    const main = {}, sub = {};
+    recipes.forEach(r => {
+      if (r.category) {
+        main[r.category] = (main[r.category] || 0) + 1;
+        if (r.subcategory) {
+          const k = `${r.category}>${r.subcategory}`;
+          sub[k] = (sub[k] || 0) + 1;
+        }
+      }
+    });
+    return { main, sub };
   }, [recipes]);
+
+  const isMainActive = (mainCat) =>
+    selected && selected !== '__favourites__' && selected.main === mainCat && !selected.sub;
+
+  const isSubActive = (mainCat, subCat) =>
+    selected && selected !== '__favourites__' && selected.main === mainCat && selected.sub === subCat;
+
+  const toggleExpand = (mainCat) =>
+    setExpanded(prev => prev === mainCat ? null : mainCat);
 
   return (
     <>
@@ -46,23 +73,52 @@ export default function CategorySidebar({ recipes, selected, onSelect, onRandom,
         <span className="sidebar-count">{recipes.length}</span>
       </div>
 
-      {categories.map(([cat, count]) => (
-        <div
-          key={cat}
-          className={`sidebar-item${selected === cat ? ' active' : ''}`}
-          onClick={() => onSelect(cat)}
-        >
-          <span className="sidebar-item-name">{cat}</span>
-          <div className="sidebar-item-right">
-            <span className="sidebar-count">{count}</span>
-            <button
-              className="shuffle-btn"
-              title={`Random ${cat} recipe`}
-              onClick={e => { e.stopPropagation(); onRandom(cat); }}
-            ><ShuffleIcon /></button>
+      {/* Main categories */}
+      {Object.entries(CATEGORIES).map(([mainCat, subs]) => {
+        const mainCount = counts.main[mainCat] || 0;
+        const isOpen = expanded === mainCat;
+
+        return (
+          <div key={mainCat} className="sidebar-group">
+            <div
+              className={`sidebar-item sidebar-item--main${isMainActive(mainCat) ? ' active' : ''}`}
+              onClick={() => { onSelect({ main: mainCat }); toggleExpand(mainCat); }}
+            >
+              <span className="sidebar-chevron" onClick={e => { e.stopPropagation(); toggleExpand(mainCat); }}>
+                <ChevronIcon open={isOpen} />
+              </span>
+              <span className="sidebar-item-name">{mainCat}</span>
+              <div className="sidebar-item-right">
+                {mainCount > 0 && <span className="sidebar-count">{mainCount}</span>}
+                <button
+                  className="shuffle-btn"
+                  title={`Random ${mainCat} recipe`}
+                  onClick={e => { e.stopPropagation(); onRandom(mainCat); }}
+                ><ShuffleIcon /></button>
+              </div>
+            </div>
+
+            {isOpen && (
+              <div className="sidebar-subs">
+                {subs.map(sub => {
+                  const subCount = counts.sub[`${mainCat}>${sub}`] || 0;
+                  return (
+                    <div
+                      key={sub}
+                      className={`sidebar-item sidebar-item--sub${isSubActive(mainCat, sub) ? ' active' : ''}`}
+                      onClick={() => onSelect({ main: mainCat, sub })}
+                    >
+                      <span className={`sidebar-sub-dot tag-dot ${tagClass(mainCat)}`} />
+                      <span className="sidebar-item-name">{sub}</span>
+                      {subCount > 0 && <span className="sidebar-count">{subCount}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 }

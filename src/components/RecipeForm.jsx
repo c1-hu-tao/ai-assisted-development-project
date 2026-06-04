@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
-import { normalizeIng } from '../utils/helpers';
+import { normalizeIng, CATEGORIES } from '../utils/helpers';
 import { db } from '../lib/supabase';
 
 export default function RecipeForm({ initialData, onSave, onClose, user }) {
   const isEdit = !!initialData?.id;
   const [title, setTitle]               = useState(initialData?.title || '');
   const [desc, setDesc]                 = useState(initialData?.description || '');
-  const [category, setCategory]         = useState(initialData?.category || 'Baking');
+  const [category, setCategory]         = useState(initialData?.category || '');
+  const [subcategory, setSubcategory]   = useState(initialData?.subcategory || '');
   const [ingredients, setIngredients]   = useState(initialData?.ingredients || []);
   const [searchTags, setSearchTags]     = useState(() => {
     if (!initialData) return [];
@@ -71,7 +72,9 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
 
     onSave({
       ...(isEdit ? { id: initialData.id } : {}),
-      title: title.trim(), description: desc.trim(), category, ingredients,
+      title: title.trim(), description: desc.trim(),
+      category, subcategory,
+      ingredients,
       search_ingredients: searchTags.map(t => t.trim()).filter(Boolean),
       instructions: instructions.trim(),
       photo_url,
@@ -119,15 +122,38 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
             <input className="form-ctrl" value={desc} onChange={e => setDesc(e.target.value)}
               placeholder="A single enticing sentence about this dish" />
           </div>
+          {/* Two-step category picker */}
           <div className="form-group">
             <label className="form-label">Category</label>
-            <select className="form-ctrl" value={category} onChange={e => setCategory(e.target.value)}>
-              <option>Appetizers</option><option>Baking</option><option>Breakfast</option>
-              <option>Desserts</option><option>Drinks</option><option>Main Course</option>
-              <option>Meats</option><option>Pasta</option><option>Pastries</option>
-              <option>Salads</option><option>Seafood</option><option>Side Dishes</option>
-              <option>Snacks</option><option>Soups</option><option>Vegetarian</option><option>Other</option>
-            </select>
+            <div className="cat-picker">
+              <div className="cat-picker-step">
+                <div className="cat-picker-main">
+                  {Object.keys(CATEGORIES).map(main => (
+                    <button
+                      key={main}
+                      type="button"
+                      className={`cat-btn${category === main ? ' cat-btn--active' : ''}`}
+                      onClick={() => { setCategory(main); setSubcategory(''); }}
+                    >{main}</button>
+                  ))}
+                </div>
+              </div>
+
+              {category && CATEGORIES[category] && (
+                <div className="cat-picker-step cat-picker-step--sub">
+                  <div className="cat-picker-sub">
+                    {CATEGORIES[category].map(sub => (
+                      <button
+                        key={sub}
+                        type="button"
+                        className={`cat-btn cat-btn--sub${subcategory === sub ? ' cat-btn--active' : ''}`}
+                        onClick={() => setSubcategory(sub)}
+                      >{sub}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.4rem' }}>

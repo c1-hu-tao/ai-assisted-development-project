@@ -11,6 +11,8 @@ import RecipeForm from './components/RecipeForm';
 import AuthModal from './components/AuthModal';
 import AISuggestScreen from './components/AISuggestScreen';
 import ProfileModal from './components/ProfileModal';
+import MealPlannerPage from './components/MealPlannerPage';
+import TabNav from './components/TabNav';
 
 const FAV_KEY = (userId) => `recipe-favs-${userId ?? 'guest'}`;
 
@@ -41,7 +43,8 @@ export default function App() {
   const userIdRef = useRef(null);
   const [showAuth,            setShowAuth]            = useState(false);
   const [favourites,          setFavourites]          = useState(() => loadFavourites(null));
-  const [page,                setPage]                = useState('recipes');
+  const [tab,                 setTab]                 = useState('recipes'); // 'recipes' | 'planner'
+  const [page,                setPage]                = useState('recipes'); // 'recipes' | 'suggest'
   const [suggestedRecipe,     setSuggestedRecipe]     = useState(null);
   const [profiles,            setProfiles]            = useState({});
   const [showProfile,         setShowProfile]         = useState(false);
@@ -166,24 +169,27 @@ export default function App() {
   };
 
   const addRecipe = async (r) => {
-    if (!user) { setShowAuth(true); return; }
-    const { error } = await db.from('recipes').insert([{
+    if (!user) { setShowAuth(true); return null; }
+    const { data, error } = await db.from('recipes').insert([{
       title: r.title, description: r.description,
-      category: r.category, ingredients: r.ingredients,
+      category: r.category, subcategory: r.subcategory || '',
+      ingredients: r.ingredients,
       search_ingredients: r.search_ingredients || [],
       instructions: r.instructions,
       photo_url: r.photo_url || null,
       owner_id: user.id,
       is_ai_generated: r.is_ai_generated || false,
-    }]);
-    if (error) alert('Could not save recipe: ' + error.message);
+    }]).select().single();
+    if (error) { alert('Could not save recipe: ' + error.message); return null; }
+    return data;
   };
 
   const updateRecipe = async (r) => {
     if (!user) return;
     let q = db.from('recipes').update({
       title: r.title, description: r.description,
-      category: r.category, ingredients: r.ingredients,
+      category: r.category, subcategory: r.subcategory || '',
+      ingredients: r.ingredients,
       search_ingredients: r.search_ingredients || [],
       instructions: r.instructions,
       photo_url: r.photo_url ?? null,
@@ -221,8 +227,8 @@ export default function App() {
 
   const closeForm = () => { setShowForm(false); setEditingRecipe(null); setSuggestedRecipe(null); };
 
-  const pickRandom = (cat) => {
-    const pool = recipes.filter(r => r.category === cat);
+  const pickRandom = (mainCat) => {
+    const pool = recipes.filter(r => r.category === mainCat);
     if (pool.length === 0) return;
     setRandomRecipe(pool[Math.floor(Math.random() * pool.length)]);
   };
@@ -268,7 +274,8 @@ export default function App() {
     if (selectedCat === '__favourites__') {
       result = result.filter(r => favourites.has(r.id));
     } else if (selectedCat) {
-      result = result.filter(r => r.category === selectedCat);
+      result = result.filter(r => r.category === selectedCat.main);
+      if (selectedCat.sub) result = result.filter(r => r.subcategory === selectedCat.sub);
     }
     if (selectedIngredients.length > 0) {
       result = result.filter(r => recipeScores[r.id] > 0);
@@ -290,15 +297,8 @@ export default function App() {
     onEditProfile: () => setShowProfile(true),
   };
 
-  if (page === 'suggest') return (
+  const modals = (
     <>
-      <AppHeader {...headerProps} />
-      <AISuggestScreen
-        onSuggest={handleSuggest}
-        onBack={() => setPage('recipes')}
-        user={user}
-        onSignIn={() => setShowAuth(true)}
-      />
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showProfile && user && (
         <ProfileModal
@@ -311,15 +311,48 @@ export default function App() {
     </>
   );
 
+  if (page === 'suggest') return (
+    <>
+      <AppHeader {...headerProps} />
+      <TabNav page="recipes" onSelect={p => { setTab(p); setPage('recipes'); }} />
+      <AISuggestScreen
+        onSuggest={handleSuggest}
+        onBack={() => setPage('recipes')}
+        user={user}
+        onSignIn={() => setShowAuth(true)}
+      />
+      {modals}
+    </>
+  );
+
+  if (tab === 'planner') return (
+    <>
+      <AppHeader {...headerProps} />
+      <TabNav page={tab} onSelect={setTab} />
+      <MealPlannerPage
+        user={user}
+        recipes={recipes}
+        onAddRecipe={addRecipe}
+        onSignIn={() => setShowAuth(true)}
+      />
+      {modals}
+    </>
+  );
+
+  const catLabel = selectedCat === '__favourites__' ? null
+    : selectedCat?.sub ? `${selectedCat.main} › ${selectedCat.sub}`
+    : selectedCat?.main ?? null;
+
   const emptyMsg = selectedCat === '__favourites__'
     ? 'No favourites yet — click the heart on any recipe.'
-    : selectedCat
-      ? `No ${selectedCat} recipes yet.`
+    : catLabel
+      ? `No ${catLabel} recipes yet.`
       : 'No recipes yet — add your first one above.';
 
   return (
     <>
       <AppHeader {...headerProps} />
+      <TabNav page={tab} onSelect={setTab} />
       <div className="app-body">
         <nav className="sidebar">
           <CategorySidebar
@@ -336,7 +369,7 @@ export default function App() {
           <div className="toolbar">
             <span className="recipe-count">
               {filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}
-              {selectedCat === '__favourites__' ? ' favourited' : selectedCat ? ` in ${selectedCat}` : ' saved'}
+              {selectedCat === '__favourites__' ? ' favourited' : catLabel ? ` in ${catLabel}` : ' saved'}
               {selectedIngredients.length > 0 ? ` • ${selectedIngredients.length} ingredient${selectedIngredients.length === 1 ? '' : 's'}` : ''}
             </span>
             <div className="toolbar-actions">
@@ -391,17 +424,7 @@ export default function App() {
           creatorName={(randomRecipe ?? viewingRecipe)?.owner_id ? profiles[(randomRecipe ?? viewingRecipe).owner_id] : null}
         />
       )}
-      {showAuth && (
-        <AuthModal onClose={() => setShowAuth(false)} />
-      )}
-      {showProfile && user && (
-        <ProfileModal
-          user={user}
-          currentName={profiles[user.id]}
-          onClose={() => setShowProfile(false)}
-          onSaved={name => setProfiles(prev => ({ ...prev, [user.id]: name }))}
-        />
-      )}
+      {modals}
     </>
   );
 }

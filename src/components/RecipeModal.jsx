@@ -24,7 +24,9 @@ export default function RecipeModal({ recipe, onClose, creatorName }) {
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', paddingBottom: '0.85rem', marginBottom: '1.25rem', borderBottom: '2px solid var(--border)' }}>
             <div>
-              <span className={`card-category ${tagClass(recipe.category)}`} style={{ display: 'inline-block', marginBottom: '0.5rem' }}>{recipe.category}</span>
+              <span className={`card-category ${tagClass(recipe.category)}`} style={{ display: 'inline-block', marginBottom: '0.5rem' }}>
+                {recipe.subcategory ? `${recipe.category} › ${recipe.subcategory}` : recipe.category}
+              </span>
               <h2 style={{ fontSize: '1.4rem', color: 'var(--espresso)', fontWeight: 'normal' }}>{recipe.title}</h2>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ flexShrink: 0 }}>✕</button>

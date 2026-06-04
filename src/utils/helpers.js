@@ -1,23 +1,52 @@
-export const CATEGORY_CLASS = {
-  'Pastries':    'tag-pastries',
-  'Drinks':      'tag-drinks',
+export const CATEGORIES = {
+  'Meat & Poultry':    ['Chicken','Beef','Pork','Lamb','Turkey','Duck'],
+  'Fish & Seafood':    ['Salmon','Tuna','Shrimp','White Fish','Shellfish'],
+  'Vegetarian':        ['Pasta','Rice & Grains','Salads','Soups','Stir Fry'],
+  'Vegan':             ['Legumes','Tofu & Tempeh','Raw','Smoothies'],
+  'Breakfast':         ['Eggs','Pancakes & Waffles','Oats','Smoothie Bowls'],
+  'Baking & Pastries': ['Bread','Cakes','Cookies','Pastries','Pies'],
+  'Desserts':          ['Ice Cream','Puddings','Chocolate','Fruit Desserts'],
+  'Drinks':            ['Coffee','Tea','Cocktails','Juices','Smoothies'],
+  'Sides & Salads':    ['Salads','Roasted Veg','Dips & Sauces'],
+  'Cuisine':           ['Italian','Asian','Mexican','Middle Eastern','Indian'],
+};
+
+export const MAIN_CATEGORY_NAMES = Object.keys(CATEGORIES);
+
+const MAIN_TAG_CLASS = {
+  'Meat & Poultry':    'tag-meat',
+  'Fish & Seafood':    'tag-seafood',
+  'Vegetarian':        'tag-veg',
+  'Vegan':             'tag-vegan',
+  'Breakfast':         'tag-breakfast',
+  'Baking & Pastries': 'tag-baking',
+  'Desserts':          'tag-desserts',
+  'Drinks':            'tag-drinks',
+  'Sides & Salads':    'tag-sides',
+  'Cuisine':           'tag-cuisine',
+};
+
+// Legacy map for recipes created before the category rework
+const LEGACY_TAG_CLASS = {
+  'Pastries':    'tag-baking',
   'Baking':      'tag-baking',
   'Breakfast':   'tag-breakfast',
   'Desserts':    'tag-desserts',
-  'Main Course': 'tag-main',
-  'Meats':       'tag-meats',
-  'Salads':      'tag-salads',
-  'Vegetarian':  'tag-veg',
-  'Soups':       'tag-soups',
-  'Pasta':       'tag-pasta',
+  'Drinks':      'tag-drinks',
+  'Main Course': 'tag-meat',
+  'Meats':       'tag-meat',
+  'Pasta':       'tag-veg',
+  'Salads':      'tag-sides',
   'Seafood':     'tag-seafood',
-  'Snacks':      'tag-snacks',
+  'Vegetarian':  'tag-veg',
+  'Soups':       'tag-veg',
+  'Snacks':      'tag-sides',
   'Side Dishes': 'tag-sides',
-  'Sides':       'tag-sides',
-  'Appetizers':  'tag-appetizers',
+  'Appetizers':  'tag-sides',
 };
 
-export const tagClass = (cat) => CATEGORY_CLASS[cat] || 'tag-other';
+export const tagClass = (mainCat) =>
+  MAIN_TAG_CLASS[mainCat] || LEGACY_TAG_CLASS[mainCat] || 'tag-other';
 
 export function isTableMissing(err) {
   return (
@@ -26,8 +55,6 @@ export function isTableMissing(err) {
   );
 }
 
-/* Strip quantities/units from ingredient strings to get a usable search name.
-   e.g. "1 large egg" → "egg", "100g almond flour" → "almond flour" */
 export function normalizeIng(raw) {
   let s = raw.toLowerCase().trim();
   for (let pass = 0; pass < 3; pass++) {

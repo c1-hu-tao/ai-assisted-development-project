@@ -5,11 +5,19 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CATEGORIES = [
-  'Appetizers','Baking','Breakfast','Desserts','Drinks','Main Course',
-  'Meats','Pasta','Pastries','Salads','Seafood','Side Dishes',
-  'Snacks','Soups','Vegetarian','Other',
-];
+const CATEGORIES: Record<string, string[]> = {
+  'Meat & Poultry':    ['Chicken','Beef','Pork','Lamb','Turkey','Duck'],
+  'Fish & Seafood':    ['Salmon','Tuna','Shrimp','White Fish','Shellfish'],
+  'Vegetarian':        ['Pasta','Rice & Grains','Salads','Soups','Stir Fry'],
+  'Vegan':             ['Legumes','Tofu & Tempeh','Raw','Smoothies'],
+  'Breakfast':         ['Eggs','Pancakes & Waffles','Oats','Smoothie Bowls'],
+  'Baking & Pastries': ['Bread','Cakes','Cookies','Pastries','Pies'],
+  'Desserts':          ['Ice Cream','Puddings','Chocolate','Fruit Desserts'],
+  'Drinks':            ['Coffee','Tea','Cocktails','Juices','Smoothies'],
+  'Sides & Salads':    ['Salads','Roasted Veg','Dips & Sauces'],
+  'Cuisine':           ['Italian','Asian','Mexican','Middle Eastern','Indian'],
+};
+const MAIN_CATS = Object.keys(CATEGORIES);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -34,16 +42,21 @@ serve(async (req) => {
       });
     }
 
+    const categoryGuide = MAIN_CATS.map(m => `  ${m}: ${CATEGORIES[m].join(', ')}`).join('\n');
     const prompt = `Generate a complete recipe based on this description: "${description.trim()}"
 
 Return ONLY a valid JSON object with exactly these fields:
 {
   "title": "Recipe name",
   "description": "One enticing sentence about the dish",
-  "category": "One of: ${CATEGORIES.join(', ')}",
+  "category": "One of the main categories listed below",
+  "subcategory": "The most fitting subcategory from that main category",
   "ingredients": ["quantity + ingredient", "..."],
   "instructions": "Step 1: ...\nStep 2: ...\n..."
 }
+
+Available categories and their subcategories:
+${categoryGuide}
 
 No markdown fences, no explanation — only the raw JSON object.`;
 
@@ -73,8 +86,10 @@ No markdown fences, no explanation — only the raw JSON object.`;
     const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     const recipe = JSON.parse(cleaned);
 
-    // Validate category falls within known list
-    if (!CATEGORIES.includes(recipe.category)) recipe.category = 'Other';
+    // Validate category and subcategory
+    if (!MAIN_CATS.includes(recipe.category)) recipe.category = MAIN_CATS[0];
+    const validSubs = CATEGORIES[recipe.category];
+    if (!validSubs.includes(recipe.subcategory)) recipe.subcategory = validSubs[0];
 
     return new Response(JSON.stringify(recipe), {
       headers: { ...CORS, 'Content-Type': 'application/json' },

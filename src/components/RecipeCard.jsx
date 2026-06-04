@@ -22,7 +22,9 @@ export default function RecipeCard({ recipe, onDelete, onEdit, matchCount, total
 
         <div className="card-top">
           <div className="card-meta-row">
-            <span className={`card-category ${tagClass(recipe.category)}`}>{recipe.category}</span>
+            <span className={`card-category ${tagClass(recipe.category)}`}>
+              {recipe.subcategory || recipe.category}
+            </span>
             {totalSelected > 0 && matchCount > 0 && (
               <span className={`match-badge ${matchCount >= totalSelected ? 'match-full' : 'match-partial'}`}>
                 {matchCount >= totalSelected ? '✓' : '~'} {matchCount}/{totalSelected}
