@@ -662,6 +662,16 @@ textarea.form-ctrl { resize: vertical; min-height: 100px; }
 }
 .photo-remove:hover { background: rgba(40, 24, 14, 0.85); }
 
+/* ── Confirm Delete Modal ── */
+.confirm-card { max-width: 420px; }
+.confirm-msg {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+.confirm-msg strong { color: var(--espresso); }
+
 /* ── Auth Header Controls ── */
 .header-meta {
   display: flex;
