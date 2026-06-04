@@ -17,11 +17,11 @@ export default function ProfileModal({ user, currentName, onClose, onSaved }) {
 
     if (error) {
       setError(error.message);
+      setLoading(false);
     } else {
       onSaved(name.trim());
-      onClose();
+      onClose(); // unmounts component — no state updates after this
     }
-    setLoading(false);
   };
 
   return (

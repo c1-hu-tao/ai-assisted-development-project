@@ -14,8 +14,20 @@ const CATEGORIES = [
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
+  if (!req.headers.get('Authorization')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...CORS, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
-    const { description } = await req.json();
+    let body: { description?: string };
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
+      });
+    }
+    const { description } = body;
     if (!description?.trim()) {
       return new Response(JSON.stringify({ error: 'Description is required' }), {
         status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },

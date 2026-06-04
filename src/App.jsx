@@ -48,10 +48,12 @@ export default function App() {
 
   const upsertProfile = async (u) => {
     if (!u) return;
-    await db.from('profiles').upsert(
+    // ignoreDuplicates: true — only insert on first login, never overwrite a name the user set via ProfileModal
+    const { error } = await db.from('profiles').upsert(
       { id: u.id, name: u.user_metadata?.name || u.email.split('@')[0] },
       { onConflict: 'id', ignoreDuplicates: true }
     );
+    if (error) console.warn('Profile upsert failed:', error.message);
   };
 
   const fetchProfiles = async (recipes) => {
@@ -185,6 +187,7 @@ export default function App() {
       search_ingredients: r.search_ingredients || [],
       instructions: r.instructions,
       photo_url: r.photo_url ?? null,
+      is_ai_generated: r.is_ai_generated || false,
     }).eq('id', r.id);
     if (!isAdmin) q = q.eq('owner_id', user.id);
     const { error } = await q;
@@ -201,7 +204,7 @@ export default function App() {
       if (!prev.has(id)) return prev;
       const next = new Set(prev);
       next.delete(id);
-      saveFavourites(user?.id, next);
+      saveFavourites(userIdRef.current, next);
       return next;
     });
   };

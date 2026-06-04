@@ -63,8 +63,11 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
     if (!title.trim()) return;
     setUploading(true);
 
-    let photo_url = photoPreview && !photoFile ? photoPreview : null; // keep existing URL if no new file
-    if (photoFile) photo_url = await uploadPhoto();
+    let photo_url = photoPreview && !photoFile ? photoPreview : null;
+    if (photoFile) {
+      photo_url = await uploadPhoto();
+      if (!photo_url) { setUploading(false); return; } // upload failed — stay open, keep existing photo
+    }
 
     onSave({
       ...(isEdit ? { id: initialData.id } : {}),
@@ -72,6 +75,7 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
       search_ingredients: searchTags.map(t => t.trim()).filter(Boolean),
       instructions: instructions.trim(),
       photo_url,
+      is_ai_generated: initialData?.is_ai_generated || false,
     });
     setUploading(false);
     onClose();
