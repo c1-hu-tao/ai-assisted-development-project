@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from './lib/supabase';
 import { isTableMissing, normalizeIng } from './utils/helpers';
 import AppHeader from './components/AppHeader';
@@ -10,6 +10,7 @@ import IngredientFilter from './components/IngredientFilter';
 import RecipeForm from './components/RecipeForm';
 import AuthModal from './components/AuthModal';
 import AISuggestScreen from './components/AISuggestScreen';
+import ProfileModal from './components/ProfileModal';
 
 const FAV_KEY = (userId) => `recipe-favs-${userId ?? 'guest'}`;
 
@@ -37,10 +38,32 @@ export default function App() {
   const [viewingRecipe,       setViewingRecipe]       = useState(null);
   const [user,                setUser]                = useState(null);
   const [isAdmin,             setIsAdmin]             = useState(false);
+  const userIdRef = useRef(null);
   const [showAuth,            setShowAuth]            = useState(false);
   const [favourites,          setFavourites]          = useState(() => loadFavourites(null));
-  const [page,                setPage]                = useState('recipes'); // 'recipes' | 'suggest'
+  const [page,                setPage]                = useState('recipes');
   const [suggestedRecipe,     setSuggestedRecipe]     = useState(null);
+  const [profiles,            setProfiles]            = useState({});
+  const [showProfile,         setShowProfile]         = useState(false);
+
+  const upsertProfile = async (u) => {
+    if (!u) return;
+    await db.from('profiles').upsert(
+      { id: u.id, name: u.user_metadata?.name || u.email.split('@')[0] },
+      { onConflict: 'id', ignoreDuplicates: true }
+    );
+  };
+
+  const fetchProfiles = async (recipes) => {
+    const ids = [...new Set(recipes.filter(r => r.owner_id).map(r => r.owner_id))];
+    if (ids.length === 0) return;
+    const { data } = await db.from('profiles').select('id, name').in('id', ids);
+    if (data) setProfiles(prev => {
+      const next = { ...prev };
+      data.forEach(p => { next[p.id] = p.name; });
+      return next;
+    });
+  };
 
   // Track auth session and reload favourites when user changes
   useEffect(() => {
@@ -48,13 +71,17 @@ export default function App() {
       const u = session?.user ?? null;
       setUser(u);
       setIsAdmin(u?.app_metadata?.role === 'admin');
+      userIdRef.current = u?.id ?? null;
       setFavourites(loadFavourites(u?.id));
+      upsertProfile(u);
     });
     const { data: { subscription } } = db.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
       setIsAdmin(u?.app_metadata?.role === 'admin');
+      userIdRef.current = u?.id ?? null;
       setFavourites(loadFavourites(u?.id));
+      upsertProfile(u);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -84,11 +111,20 @@ export default function App() {
       if (dead) return;
       setRecipes(data);
       setStatus('ready');
+      fetchProfiles(data);
+
+      // Purge any favourites that no longer exist in the DB
+      const existingIds = new Set(data.map(r => r.id));
+      setFavourites(prev => {
+        const cleaned = new Set([...prev].filter(id => existingIds.has(id)));
+        if (cleaned.size !== prev.size) saveFavourites(userIdRef.current, cleaned);
+        return cleaned;
+      });
 
       channel = db.channel(`recipes-${retryKey}`)
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'recipes' },
-          ({ new: r }) => { if (!dead) setRecipes(prev => [r, ...prev]); }
+          ({ new: r }) => { if (!dead) { setRecipes(prev => [r, ...prev]); fetchProfiles([r]); } }
         )
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'recipes' },
@@ -96,7 +132,17 @@ export default function App() {
         )
         .on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'recipes' },
-          ({ old: r }) => { if (!dead) setRecipes(prev => prev.filter(x => x.id !== r.id)); }
+          ({ old: r }) => {
+            if (dead) return;
+            setRecipes(prev => prev.filter(x => x.id !== r.id));
+            setFavourites(prev => {
+              if (!prev.has(r.id)) return prev;
+              const next = new Set(prev);
+              next.delete(r.id);
+              saveFavourites(userIdRef.current, next);
+              return next;
+            });
+          }
         )
         .subscribe(s => { if (!dead) setConnected(s === 'SUBSCRIBED'); });
     }
@@ -126,6 +172,7 @@ export default function App() {
       instructions: r.instructions,
       photo_url: r.photo_url || null,
       owner_id: user.id,
+      is_ai_generated: r.is_ai_generated || false,
     }]);
     if (error) alert('Could not save recipe: ' + error.message);
   };
@@ -228,14 +275,16 @@ export default function App() {
   }, [recipes, selectedCat, selectedIngredients, recipeScores, favourites]);
 
   const handleSuggest = (recipeData) => {
-    setSuggestedRecipe(recipeData);
+    setSuggestedRecipe({ ...recipeData, is_ai_generated: true });
     setPage('recipes');
     setShowForm(true);
   };
 
   const headerProps = {
     connected, user,
+    displayName: user ? profiles[user.id] : null,
     onSignIn: () => setShowAuth(true),
+    onEditProfile: () => setShowProfile(true),
   };
 
   if (page === 'suggest') return (
@@ -248,6 +297,14 @@ export default function App() {
         onSignIn={() => setShowAuth(true)}
       />
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showProfile && user && (
+        <ProfileModal
+          user={user}
+          currentName={profiles[user.id]}
+          onClose={() => setShowProfile(false)}
+          onSaved={name => setProfiles(prev => ({ ...prev, [user.id]: name }))}
+        />
+      )}
     </>
   );
 
@@ -308,6 +365,7 @@ export default function App() {
                   isOwner={!!user && (isAdmin || user.id === r.owner_id)}
                   isFavourite={favourites.has(r.id)}
                   onToggleFavourite={toggleFavourite}
+                  creatorName={r.owner_id ? profiles[r.owner_id] : null}
                 />
               ))}
             </div>
@@ -327,10 +385,19 @@ export default function App() {
         <RecipeModal
           recipe={randomRecipe ?? viewingRecipe}
           onClose={() => { setRandomRecipe(null); setViewingRecipe(null); }}
+          creatorName={(randomRecipe ?? viewingRecipe)?.owner_id ? profiles[(randomRecipe ?? viewingRecipe).owner_id] : null}
         />
       )}
       {showAuth && (
         <AuthModal onClose={() => setShowAuth(false)} />
+      )}
+      {showProfile && user && (
+        <ProfileModal
+          user={user}
+          currentName={profiles[user.id]}
+          onClose={() => setShowProfile(false)}
+          onSaved={name => setProfiles(prev => ({ ...prev, [user.id]: name }))}
+        />
       )}
     </>
   );

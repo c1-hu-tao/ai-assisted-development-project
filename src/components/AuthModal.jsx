@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { db } from '../lib/supabase';
 
 export default function AuthModal({ onClose }) {
-  const [mode, setMode]       = useState('signin'); // 'signin' | 'signup'
-  const [email, setEmail]     = useState('');
+  const [mode, setMode]         = useState('signin');
+  const [name, setName]         = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError]     = useState('');
-  const [info, setInfo]       = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState('');
+  const [info, setInfo]         = useState('');
+  const [loading, setLoading]   = useState(false);
+
+  const switchMode = (m) => { setMode(m); setError(''); setInfo(''); };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -20,7 +23,11 @@ export default function AuthModal({ onClose }) {
       if (error) setError(error.message);
       else onClose();
     } else {
-      const { error } = await db.auth.signUp({ email, password });
+      const { error } = await db.auth.signUp({
+        email,
+        password,
+        options: { data: { name: name.trim() } },
+      });
       if (error) setError(error.message);
       else setInfo('Check your email for a confirmation link, then sign in.');
     }
@@ -29,10 +36,24 @@ export default function AuthModal({ onClose }) {
   };
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="overlay">
       <div className="form-card auth-card">
         <h2 className="form-heading">{mode === 'signin' ? 'Sign In' : 'Create Account'}</h2>
         <form onSubmit={submit}>
+          {mode === 'signup' && (
+            <div className="form-group">
+              <label className="form-label">Name</label>
+              <input
+                className="form-ctrl"
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                required
+                autoFocus
+                placeholder="Your display name"
+              />
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Email</label>
             <input
@@ -41,7 +62,7 @@ export default function AuthModal({ onClose }) {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              autoFocus
+              autoFocus={mode === 'signin'}
               placeholder="you@example.com"
             />
           </div>
@@ -71,8 +92,8 @@ export default function AuthModal({ onClose }) {
 
         <p className="auth-switch">
           {mode === 'signin'
-            ? <>No account? <button className="auth-link" onClick={() => { setMode('signup'); setError(''); setInfo(''); }}>Sign up</button></>
-            : <>Have an account? <button className="auth-link" onClick={() => { setMode('signin'); setError(''); setInfo(''); }}>Sign in</button></>
+            ? <>No account? <button className="auth-link" onClick={() => switchMode('signup')}>Sign up</button></>
+            : <>Have an account? <button className="auth-link" onClick={() => switchMode('signin')}>Sign in</button></>
           }
         </p>
       </div>

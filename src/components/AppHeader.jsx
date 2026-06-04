@@ -1,6 +1,6 @@
 import { db } from '../lib/supabase';
 
-export default function AppHeader({ connected, user, onSignIn }) {
+export default function AppHeader({ connected, user, displayName, onSignIn, onEditProfile }) {
   const signOut = () => db.auth.signOut();
 
   return (
@@ -16,7 +16,9 @@ export default function AppHeader({ connected, user, onSignIn }) {
           </span>
           {user ? (
             <div className="auth-status">
-              <span className="auth-email">{user.email}</span>
+              <button className="auth-name-btn" onClick={onEditProfile} title="Edit display name">
+                {displayName || user.email}
+              </button>
               <button className="auth-signout-btn" onClick={signOut}>Sign out</button>
             </div>
           ) : (

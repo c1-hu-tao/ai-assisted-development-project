@@ -286,7 +286,8 @@ body {
 .match-partial { background: #FCE8D0; color: #7D3208; }
 .card-meta-row { margin-bottom: 0.6rem; }
 .card-title { font-size: 1.15rem; color: var(--espresso); line-height: 1.3; margin-bottom: 0.35rem; }
-.card-desc  { color: var(--muted); font-size: 0.83rem; font-style: italic; line-height: 1.45; }
+.card-desc    { color: var(--muted); font-size: 0.83rem; font-style: italic; line-height: 1.45; }
+.card-creator { color: var(--muted); font-size: 0.75rem; font-style: italic; margin-top: 0.25rem; }
 
 .card-footer {
   margin-top: auto;
@@ -620,6 +621,24 @@ textarea.form-ctrl { resize: vertical; min-height: 100px; }
   display: block;
 }
 .modal-body { padding: 2rem; }
+.modal-creator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.4rem 1rem;
+  background: rgba(40, 24, 14, 0.55);
+  color: rgba(253, 246, 236, 0.85);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+.modal-photo-wrap { position: relative; }
+.modal-creator--no-photo {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: italic;
+  margin-bottom: 1rem;
+}
 
 /* ── Photo Upload in Form ── */
 .photo-upload-btn {
@@ -770,15 +789,23 @@ textarea.form-ctrl { resize: vertical; min-height: 100px; }
   align-items: center;
   gap: 0.6rem;
 }
-.auth-email {
+.auth-name-btn {
+  background: none;
+  border: none;
   font-size: 0.72rem;
   color: rgba(253, 246, 236, 0.7);
   font-style: italic;
+  font-family: inherit;
+  cursor: pointer;
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding: 0;
+  transition: color 0.15s;
+  text-decoration: underline dotted rgba(253,246,236,0.35);
 }
+.auth-name-btn:hover { color: rgba(253, 246, 236, 1); }
 .auth-signout-btn {
   background: rgba(253, 246, 236, 0.12);
   border: 1px solid rgba(253, 246, 236, 0.25);
