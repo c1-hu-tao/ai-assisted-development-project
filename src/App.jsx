@@ -146,7 +146,14 @@ export default function App() {
     let q = db.from('recipes').delete().eq('id', id);
     if (!isAdmin) q = q.eq('owner_id', user.id);
     const { error } = await q;
-    if (error) alert('Could not delete recipe: ' + error.message);
+    if (error) { alert('Could not delete recipe: ' + error.message); return; }
+    setFavourites(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      saveFavourites(user?.id, next);
+      return next;
+    });
   };
 
   const handleAddClick = () => {
