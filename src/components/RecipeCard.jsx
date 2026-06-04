@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { tagClass } from '../utils/helpers';
 
-export default function RecipeCard({ recipe, onDelete, onEdit, matchCount, totalSelected }) {
-  const [open, setOpen] = useState(false);
+export default function RecipeCard({ recipe, onDelete, onEdit, matchCount, totalSelected, isOwner, onView }) {
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
 
   return (
@@ -20,38 +18,23 @@ export default function RecipeCard({ recipe, onDelete, onEdit, matchCount, total
         {recipe.description && <p className="card-desc">{recipe.description}</p>}
       </div>
 
-      {open && (
-        <div className="card-details">
-          {ingredients.length > 0 && (
-            <div className="detail-section">
-              <div className="detail-label">Ingredients</div>
-              <ul className="ing-list">
-                {ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
-              </ul>
-            </div>
-          )}
-          {recipe.instructions && (
-            <div className="detail-section">
-              <div className="detail-label">Instructions</div>
-              <p className="instructions">{recipe.instructions}</p>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="card-footer">
-        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(o => !o)}>
-          {open ? 'Collapse' : 'View Recipe'}
+        <button className="btn btn-ghost btn-sm" onClick={() => onView(recipe)}>
+          View Recipe
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => onEdit(recipe)}>
-          Edit
-        </button>
-        <button
-          className="btn btn-danger btn-sm"
-          onClick={() => { if (window.confirm('Delete this recipe?')) onDelete(recipe.id); }}
-        >
-          Delete
-        </button>
+        {isOwner && (
+          <>
+            <button className="btn btn-ghost btn-sm" onClick={() => onEdit(recipe)}>
+              Edit
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => { if (window.confirm('Delete this recipe?')) onDelete(recipe.id); }}
+            >
+              Delete
+            </button>
+          </>
+        )}
       </div>
     </article>
   );

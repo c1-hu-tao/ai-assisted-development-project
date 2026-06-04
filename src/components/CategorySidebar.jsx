@@ -1,5 +1,14 @@
 import { useMemo } from 'react';
 
+const ShuffleIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="16 3 21 3 21 8"/>
+    <line x1="4" y1="20" x2="21" y2="3"/>
+    <polyline points="21 16 21 21 16 21"/>
+    <line x1="15" y1="15" x2="21" y2="21"/>
+  </svg>
+);
+
 export default function CategorySidebar({ recipes, selected, onSelect, onRandom }) {
   const categories = useMemo(() => {
     const counts = {};
@@ -23,15 +32,15 @@ export default function CategorySidebar({ recipes, selected, onSelect, onRandom 
           className={`sidebar-item${selected === cat ? ' active' : ''}`}
           onClick={() => onSelect(cat)}
         >
-          <div className="sidebar-item-left">
+          <span className="sidebar-item-name">{cat}</span>
+          <div className="sidebar-item-right">
+            <span className="sidebar-count">{count}</span>
             <button
-              className="dice-btn"
+              className="shuffle-btn"
               title={`Random ${cat} recipe`}
               onClick={e => { e.stopPropagation(); onRandom(cat); }}
-            >🎲</button>
-            <span>{cat}</span>
+            ><ShuffleIcon /></button>
           </div>
-          <span className="sidebar-count">{count}</span>
         </div>
       ))}
     </>

@@ -1,6 +1,6 @@
 import { tagClass } from '../utils/helpers';
 
-export default function RandomRecipeModal({ recipe, onClose }) {
+export default function RecipeModal({ recipe, onClose }) {
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
 
   return (

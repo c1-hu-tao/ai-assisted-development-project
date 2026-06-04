@@ -4,14 +4,15 @@ import { isTableMissing, normalizeIng } from './utils/helpers';
 import AppHeader from './components/AppHeader';
 import RecipeCard from './components/RecipeCard';
 import SetupScreen from './components/SetupScreen';
-import RandomRecipeModal from './components/RandomRecipeModal';
+import RecipeModal from './components/RecipeModal';
 import CategorySidebar from './components/CategorySidebar';
 import IngredientFilter from './components/IngredientFilter';
 import RecipeForm from './components/RecipeForm';
+import AuthModal from './components/AuthModal';
 
 export default function App() {
   const [recipes,             setRecipes]             = useState([]);
-  const [status,              setStatus]              = useState('loading'); // loading | setup | error | ready
+  const [status,              setStatus]              = useState('loading');
   const [errMsg,              setErrMsg]              = useState('');
   const [connected,           setConnected]           = useState(false);
   const [showForm,            setShowForm]            = useState(false);
@@ -20,7 +21,22 @@ export default function App() {
   const [selectedCat,         setSelectedCat]         = useState(null);
   const [selectedIngredients, setSelectedIngredients] = useState([]);
   const [randomRecipe,        setRandomRecipe]        = useState(null);
+  const [viewingRecipe,       setViewingRecipe]       = useState(null);
+  const [user,                setUser]                = useState(null);
+  const [showAuth,            setShowAuth]            = useState(false);
 
+  // Track auth session
+  useEffect(() => {
+    db.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = db.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load recipes and subscribe to real-time changes
   useEffect(() => {
     let channel = null;
     let dead    = false;
@@ -70,28 +86,43 @@ export default function App() {
   }, [retryKey]);
 
   const addRecipe = async (r) => {
+    if (!user) { setShowAuth(true); return; }
     const { error } = await db.from('recipes').insert([{
       title: r.title, description: r.description,
       category: r.category, ingredients: r.ingredients,
       search_ingredients: r.search_ingredients || [],
       instructions: r.instructions,
+      owner_id: user.id,
     }]);
     if (error) alert('Could not save recipe: ' + error.message);
   };
 
   const updateRecipe = async (r) => {
+    if (!user) return;
     const { error } = await db.from('recipes').update({
       title: r.title, description: r.description,
       category: r.category, ingredients: r.ingredients,
       search_ingredients: r.search_ingredients || [],
       instructions: r.instructions,
-    }).eq('id', r.id);
+    }).eq('id', r.id).eq('owner_id', user.id); // belt-and-suspenders: client also scopes to owner
     if (error) alert('Could not update recipe: ' + error.message);
   };
 
   const deleteRecipe = async (id) => {
-    const { error } = await db.from('recipes').delete().eq('id', id);
+    if (!user) return;
+    const { error } = await db.from('recipes').delete()
+      .eq('id', id).eq('owner_id', user.id);
     if (error) alert('Could not delete recipe: ' + error.message);
+  };
+
+  const handleAddClick = () => {
+    if (!user) { setShowAuth(true); return; }
+    setShowForm(true);
+  };
+
+  const handleEditClick = (recipe) => {
+    if (!user || user.id !== recipe.owner_id) return;
+    setEditingRecipe(recipe);
   };
 
   const closeForm = () => { setShowForm(false); setEditingRecipe(null); };
@@ -149,7 +180,7 @@ export default function App() {
 
   if (status === 'loading') return (
     <>
-      <AppHeader connected={false} />
+      <AppHeader connected={false} user={user} onSignIn={() => setShowAuth(true)} />
       <main className="main">
         <div className="status-screen">
           <div className="spinner" />
@@ -160,12 +191,12 @@ export default function App() {
   );
 
   if (status === 'setup') return (
-    <><AppHeader connected={false} /><SetupScreen onRetry={retry} /></>
+    <><AppHeader connected={false} user={user} onSignIn={() => setShowAuth(true)} /><SetupScreen onRetry={retry} /></>
   );
 
   if (status === 'error') return (
     <>
-      <AppHeader connected={false} />
+      <AppHeader connected={false} user={user} onSignIn={() => setShowAuth(true)} />
       <main className="main">
         <div className="status-screen">
           <p className="err-text">Connection error: {errMsg}</p>
@@ -177,7 +208,7 @@ export default function App() {
 
   return (
     <>
-      <AppHeader connected={connected} />
+      <AppHeader connected={connected} user={user} onSignIn={() => setShowAuth(true)} />
       <div className="app-body">
         <nav className="sidebar">
           <CategorySidebar recipes={recipes} selected={selectedCat} onSelect={setSelectedCat} onRandom={pickRandom} />
@@ -191,7 +222,7 @@ export default function App() {
               {selectedCat ? ` in ${selectedCat}` : ' saved'}
               {selectedIngredients.length > 0 ? ` • ${selectedIngredients.length} ingredient${selectedIngredients.length === 1 ? '' : 's'}` : ''}
             </span>
-            <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+            <button className="btn btn-primary" onClick={handleAddClick}>
               + Add Recipe
             </button>
           </div>
@@ -204,8 +235,16 @@ export default function App() {
           ) : (
             <div className="recipe-grid">
               {filteredRecipes.map(r => (
-                <RecipeCard key={r.id} recipe={r} onDelete={deleteRecipe} onEdit={setEditingRecipe}
-                  matchCount={recipeScores[r.id]} totalSelected={selectedIngredients.length} />
+                <RecipeCard
+                  key={r.id}
+                  recipe={r}
+                  onDelete={deleteRecipe}
+                  onEdit={handleEditClick}
+                  onView={setViewingRecipe}
+                  matchCount={recipeScores[r.id]}
+                  totalSelected={selectedIngredients.length}
+                  isOwner={!!user && user.id === r.owner_id}
+                />
               ))}
             </div>
           )}
@@ -219,8 +258,14 @@ export default function App() {
           onClose={closeForm}
         />
       )}
-      {randomRecipe && (
-        <RandomRecipeModal recipe={randomRecipe} onClose={() => setRandomRecipe(null)} />
+      {(randomRecipe || viewingRecipe) && (
+        <RecipeModal
+          recipe={randomRecipe ?? viewingRecipe}
+          onClose={() => { setRandomRecipe(null); setViewingRecipe(null); }}
+        />
+      )}
+      {showAuth && (
+        <AuthModal onClose={() => setShowAuth(false)} />
       )}
     </>
   );
