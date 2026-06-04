@@ -10,6 +10,18 @@ import IngredientFilter from './components/IngredientFilter';
 import RecipeForm from './components/RecipeForm';
 import AuthModal from './components/AuthModal';
 
+const FAV_KEY = (userId) => `recipe-favs-${userId ?? 'guest'}`;
+
+function loadFavourites(userId) {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(FAV_KEY(userId)) || '[]'));
+  } catch { return new Set(); }
+}
+
+function saveFavourites(userId, set) {
+  localStorage.setItem(FAV_KEY(userId), JSON.stringify([...set]));
+}
+
 export default function App() {
   const [recipes,             setRecipes]             = useState([]);
   const [status,              setStatus]              = useState('loading');
@@ -24,14 +36,19 @@ export default function App() {
   const [viewingRecipe,       setViewingRecipe]       = useState(null);
   const [user,                setUser]                = useState(null);
   const [showAuth,            setShowAuth]            = useState(false);
+  const [favourites,          setFavourites]          = useState(() => loadFavourites(null));
 
-  // Track auth session
+  // Track auth session and reload favourites when user changes
   useEffect(() => {
     db.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      setFavourites(loadFavourites(u?.id));
     });
     const { data: { subscription } } = db.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      setFavourites(loadFavourites(u?.id));
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -85,6 +102,15 @@ export default function App() {
     };
   }, [retryKey]);
 
+  const toggleFavourite = (id) => {
+    setFavourites(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      saveFavourites(user?.id, next);
+      return next;
+    });
+  };
+
   const addRecipe = async (r) => {
     if (!user) { setShowAuth(true); return; }
     const { error } = await db.from('recipes').insert([{
@@ -92,6 +118,7 @@ export default function App() {
       category: r.category, ingredients: r.ingredients,
       search_ingredients: r.search_ingredients || [],
       instructions: r.instructions,
+      photo_url: r.photo_url || null,
       owner_id: user.id,
     }]);
     if (error) alert('Could not save recipe: ' + error.message);
@@ -104,7 +131,8 @@ export default function App() {
       category: r.category, ingredients: r.ingredients,
       search_ingredients: r.search_ingredients || [],
       instructions: r.instructions,
-    }).eq('id', r.id).eq('owner_id', user.id); // belt-and-suspenders: client also scopes to owner
+      photo_url: r.photo_url ?? null,
+    }).eq('id', r.id).eq('owner_id', user.id);
     if (error) alert('Could not update recipe: ' + error.message);
   };
 
@@ -170,17 +198,24 @@ export default function App() {
   }, [recipes, selectedIngredients]);
 
   const filteredRecipes = useMemo(() => {
-    let result = selectedCat ? recipes.filter(r => r.category === selectedCat) : recipes;
+    let result = recipes;
+    if (selectedCat === '__favourites__') {
+      result = result.filter(r => favourites.has(r.id));
+    } else if (selectedCat) {
+      result = result.filter(r => r.category === selectedCat);
+    }
     if (selectedIngredients.length > 0) {
       result = result.filter(r => recipeScores[r.id] > 0);
-      result = result.sort((a, b) => recipeScores[b.id] - recipeScores[a.id]);
+      result = [...result].sort((a, b) => recipeScores[b.id] - recipeScores[a.id]);
     }
     return result;
-  }, [recipes, selectedCat, selectedIngredients, recipeScores]);
+  }, [recipes, selectedCat, selectedIngredients, recipeScores, favourites]);
+
+  const headerProps = { connected, user, onSignIn: () => setShowAuth(true) };
 
   if (status === 'loading') return (
     <>
-      <AppHeader connected={false} user={user} onSignIn={() => setShowAuth(true)} />
+      <AppHeader {...headerProps} />
       <main className="main">
         <div className="status-screen">
           <div className="spinner" />
@@ -191,12 +226,12 @@ export default function App() {
   );
 
   if (status === 'setup') return (
-    <><AppHeader connected={false} user={user} onSignIn={() => setShowAuth(true)} /><SetupScreen onRetry={retry} /></>
+    <><AppHeader {...headerProps} /><SetupScreen onRetry={retry} /></>
   );
 
   if (status === 'error') return (
     <>
-      <AppHeader connected={false} user={user} onSignIn={() => setShowAuth(true)} />
+      <AppHeader {...headerProps} />
       <main className="main">
         <div className="status-screen">
           <p className="err-text">Connection error: {errMsg}</p>
@@ -206,12 +241,24 @@ export default function App() {
     </>
   );
 
+  const emptyMsg = selectedCat === '__favourites__'
+    ? 'No favourites yet — click the heart on any recipe.'
+    : selectedCat
+      ? `No ${selectedCat} recipes yet.`
+      : 'No recipes yet — add your first one above.';
+
   return (
     <>
-      <AppHeader connected={connected} user={user} onSignIn={() => setShowAuth(true)} />
+      <AppHeader {...headerProps} />
       <div className="app-body">
         <nav className="sidebar">
-          <CategorySidebar recipes={recipes} selected={selectedCat} onSelect={setSelectedCat} onRandom={pickRandom} />
+          <CategorySidebar
+            recipes={recipes}
+            selected={selectedCat}
+            onSelect={setSelectedCat}
+            onRandom={pickRandom}
+            favouriteCount={favourites.size}
+          />
           <IngredientFilter allIngredients={allIngredients} selected={selectedIngredients}
             onToggle={toggleIngredient} onClearAll={() => setSelectedIngredients([])} />
         </nav>
@@ -219,7 +266,7 @@ export default function App() {
           <div className="toolbar">
             <span className="recipe-count">
               {filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}
-              {selectedCat ? ` in ${selectedCat}` : ' saved'}
+              {selectedCat === '__favourites__' ? ' favourited' : selectedCat ? ` in ${selectedCat}` : ' saved'}
               {selectedIngredients.length > 0 ? ` • ${selectedIngredients.length} ingredient${selectedIngredients.length === 1 ? '' : 's'}` : ''}
             </span>
             <button className="btn btn-primary" onClick={handleAddClick}>
@@ -230,7 +277,7 @@ export default function App() {
           {filteredRecipes.length === 0 ? (
             <div className="empty">
               <div className="empty-icon">☕</div>
-              <p>{selectedCat ? `No ${selectedCat} recipes yet.` : 'No recipes yet — add your first one above.'}</p>
+              <p>{emptyMsg}</p>
             </div>
           ) : (
             <div className="recipe-grid">
@@ -244,6 +291,8 @@ export default function App() {
                   matchCount={recipeScores[r.id]}
                   totalSelected={selectedIngredients.length}
                   isOwner={!!user && user.id === r.owner_id}
+                  isFavourite={favourites.has(r.id)}
+                  onToggleFavourite={toggleFavourite}
                 />
               ))}
             </div>
@@ -256,6 +305,7 @@ export default function App() {
           initialData={editingRecipe}
           onSave={editingRecipe ? updateRecipe : addRecipe}
           onClose={closeForm}
+          user={user}
         />
       )}
       {(randomRecipe || viewingRecipe) && (

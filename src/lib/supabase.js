@@ -46,10 +46,11 @@ alter table public.recipes replica identity full;`;
 
 // Existing install migration — run if the table already exists
 export const MIGRATION_SQL =
-`-- Add owner_id to existing recipes table
+`-- Add columns to existing recipes table
 alter table public.recipes
   add column if not exists owner_id uuid references auth.users(id),
-  add column if not exists search_ingredients jsonb default '[]'::jsonb;
+  add column if not exists search_ingredients jsonb default '[]'::jsonb,
+  add column if not exists photo_url text;
 
 -- Enable RLS (safe to run even if already enabled)
 alter table public.recipes enable row level security;
@@ -72,3 +73,29 @@ create policy "Users can update their own recipes"
 create policy "Users can delete their own recipes"
   on public.recipes for delete to authenticated
   using (auth.uid() = owner_id);`;
+
+// Storage bucket setup — run once after the migration above
+export const STORAGE_SQL =
+`-- Create public bucket for recipe photos
+insert into storage.buckets (id, name, public)
+values ('recipe-photos', 'recipe-photos', true)
+on conflict (id) do nothing;
+
+-- Anyone can view photos
+create policy "Anyone can view recipe photos"
+  on storage.objects for select
+  using (bucket_id = 'recipe-photos');
+
+-- Authenticated users can upload
+create policy "Authenticated users can upload recipe photos"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'recipe-photos');
+
+-- Users can replace/delete their own photos (stored under their uid folder)
+create policy "Users can update their own recipe photos"
+  on storage.objects for update to authenticated
+  using (bucket_id = 'recipe-photos' and auth.uid()::text = (storage.foldername(name))[1]);
+
+create policy "Users can delete their own recipe photos"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'recipe-photos' and auth.uid()::text = (storage.foldername(name))[1]);`;

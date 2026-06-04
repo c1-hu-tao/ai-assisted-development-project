@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { normalizeIng } from '../utils/helpers';
+import { db } from '../lib/supabase';
 
-export default function RecipeForm({ initialData, onSave, onClose }) {
+export default function RecipeForm({ initialData, onSave, onClose, user }) {
   const isEdit = !!initialData;
   const [title, setTitle]               = useState(initialData?.title || '');
   const [desc, setDesc]                 = useState(initialData?.description || '');
@@ -14,7 +15,11 @@ export default function RecipeForm({ initialData, onSave, onClose }) {
   });
   const [ingInput, setIngInput]         = useState('');
   const [instructions, setInstructions] = useState(initialData?.instructions || '');
-  const ingRef = useRef(null);
+  const [photoFile, setPhotoFile]       = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(initialData?.photo_url || null);
+  const [uploading, setUploading]       = useState(false);
+  const ingRef  = useRef(null);
+  const fileRef = useRef(null);
 
   const commitIng = () => {
     const v = ingInput.trim();
@@ -30,15 +35,45 @@ export default function RecipeForm({ initialData, onSave, onClose }) {
     setSearchTags(prev => prev.filter((_, j) => j !== i));
   };
 
-  const handleSubmit = (e) => {
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const uploadPhoto = async () => {
+    if (!photoFile || !user) return null;
+    const ext  = photoFile.name.split('.').pop();
+    const path = `${user.id}/${Date.now()}.${ext}`;
+    const { error } = await db.storage.from('recipe-photos').upload(path, photoFile, { upsert: true });
+    if (error) { alert('Photo upload failed: ' + error.message); return null; }
+    const { data } = db.storage.from('recipe-photos').getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
+    setUploading(true);
+
+    let photo_url = photoPreview && !photoFile ? photoPreview : null; // keep existing URL if no new file
+    if (photoFile) photo_url = await uploadPhoto();
+
     onSave({
       ...(isEdit ? { id: initialData.id } : {}),
       title: title.trim(), description: desc.trim(), category, ingredients,
       search_ingredients: searchTags.map(t => t.trim()).filter(Boolean),
       instructions: instructions.trim(),
+      photo_url,
     });
+    setUploading(false);
     onClose();
   };
 
@@ -47,6 +82,29 @@ export default function RecipeForm({ initialData, onSave, onClose }) {
       <div className="form-card">
         <h2 className="form-heading">{isEdit ? 'Edit Recipe' : 'Add New Recipe'}</h2>
         <form onSubmit={handleSubmit}>
+
+          {/* Photo */}
+          <div className="form-group">
+            <label className="form-label">Photo</label>
+            {photoPreview ? (
+              <div className="photo-preview-wrap">
+                <img src={photoPreview} alt="Recipe preview" className="photo-preview" />
+                <button type="button" className="photo-remove" onClick={removePhoto}>✕ Remove</button>
+              </div>
+            ) : (
+              <button type="button" className="photo-upload-btn" onClick={() => fileRef.current?.click()}>
+                + Add Photo
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handlePhotoChange}
+            />
+          </div>
+
           <div className="form-group">
             <label className="form-label">Title *</label>
             <input className="form-ctrl" value={title} onChange={e => setTitle(e.target.value)}
@@ -103,7 +161,9 @@ export default function RecipeForm({ initialData, onSave, onClose }) {
           </div>
           <div className="form-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">{isEdit ? 'Save Changes' : 'Save Recipe'}</button>
+            <button type="submit" className="btn btn-primary" disabled={uploading}>
+              {uploading ? 'Saving…' : isEdit ? 'Save Changes' : 'Save Recipe'}
+            </button>
           </div>
         </form>
       </div>
