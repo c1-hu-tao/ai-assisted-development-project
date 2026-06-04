@@ -13,7 +13,7 @@ export default function RecipeCard({ recipe, onDelete, onEdit, matchCount, total
 
   return (
     <>
-      <article className="recipe-card">
+      <article className="recipe-card" onClick={() => onView(recipe)} style={{ cursor: 'pointer' }}>
         {recipe.photo_url && (
           <div className="card-photo-wrap">
             <img src={recipe.photo_url} alt={recipe.title} className="card-photo" />
@@ -32,16 +32,13 @@ export default function RecipeCard({ recipe, onDelete, onEdit, matchCount, total
           <h2 className="card-title">{recipe.title}</h2>
         </div>
 
-        <div className="card-footer">
+        <div className="card-footer" onClick={e => e.stopPropagation()}>
           <button
             className={`fav-btn${isFavourite ? ' fav-btn--active' : ''}`}
             title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
             onClick={() => onToggleFavourite(recipe.id)}
           >
             <HeartIcon filled={isFavourite} />
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => onView(recipe)}>
-            View Recipe
           </button>
           {isOwner && (
             <>
