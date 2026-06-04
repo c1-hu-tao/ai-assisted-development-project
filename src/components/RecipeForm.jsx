@@ -25,7 +25,7 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
     const v = ingInput.trim();
     if (!v) return;
     setIngredients(prev => [...prev, v]);
-    setSearchTags(prev => [...prev, normalizeIng(v)]);
+    setSearchTags(prev => [...prev, '']);
     setIngInput('');
     ingRef.current?.focus();
   };

@@ -35,6 +35,7 @@ export default function App() {
   const [randomRecipe,        setRandomRecipe]        = useState(null);
   const [viewingRecipe,       setViewingRecipe]       = useState(null);
   const [user,                setUser]                = useState(null);
+  const [isAdmin,             setIsAdmin]             = useState(false);
   const [showAuth,            setShowAuth]            = useState(false);
   const [favourites,          setFavourites]          = useState(() => loadFavourites(null));
 
@@ -43,11 +44,13 @@ export default function App() {
     db.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u);
+      setIsAdmin(u?.app_metadata?.role === 'admin');
       setFavourites(loadFavourites(u?.id));
     });
     const { data: { subscription } } = db.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
+      setIsAdmin(u?.app_metadata?.role === 'admin');
       setFavourites(loadFavourites(u?.id));
     });
     return () => subscription.unsubscribe();
@@ -126,20 +129,23 @@ export default function App() {
 
   const updateRecipe = async (r) => {
     if (!user) return;
-    const { error } = await db.from('recipes').update({
+    let q = db.from('recipes').update({
       title: r.title, description: r.description,
       category: r.category, ingredients: r.ingredients,
       search_ingredients: r.search_ingredients || [],
       instructions: r.instructions,
       photo_url: r.photo_url ?? null,
-    }).eq('id', r.id).eq('owner_id', user.id);
+    }).eq('id', r.id);
+    if (!isAdmin) q = q.eq('owner_id', user.id);
+    const { error } = await q;
     if (error) alert('Could not update recipe: ' + error.message);
   };
 
   const deleteRecipe = async (id) => {
     if (!user) return;
-    const { error } = await db.from('recipes').delete()
-      .eq('id', id).eq('owner_id', user.id);
+    let q = db.from('recipes').delete().eq('id', id);
+    if (!isAdmin) q = q.eq('owner_id', user.id);
+    const { error } = await q;
     if (error) alert('Could not delete recipe: ' + error.message);
   };
 
@@ -149,7 +155,7 @@ export default function App() {
   };
 
   const handleEditClick = (recipe) => {
-    if (!user || user.id !== recipe.owner_id) return;
+    if (!user || (!isAdmin && user.id !== recipe.owner_id)) return;
     setEditingRecipe(recipe);
   };
 
@@ -290,7 +296,7 @@ export default function App() {
                   onView={setViewingRecipe}
                   matchCount={recipeScores[r.id]}
                   totalSelected={selectedIngredients.length}
-                  isOwner={!!user && user.id === r.owner_id}
+                  isOwner={!!user && (isAdmin || user.id === r.owner_id)}
                   isFavourite={favourites.has(r.id)}
                   onToggleFavourite={toggleFavourite}
                 />
