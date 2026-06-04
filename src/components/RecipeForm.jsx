@@ -3,7 +3,7 @@ import { normalizeIng } from '../utils/helpers';
 import { db } from '../lib/supabase';
 
 export default function RecipeForm({ initialData, onSave, onClose, user }) {
-  const isEdit = !!initialData;
+  const isEdit = !!initialData?.id;
   const [title, setTitle]               = useState(initialData?.title || '');
   const [desc, setDesc]                 = useState(initialData?.description || '');
   const [category, setCategory]         = useState(initialData?.category || 'Baking');
@@ -78,7 +78,7 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
   };
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="overlay">
       <div className="form-card">
         <h2 className="form-heading">{isEdit ? 'Edit Recipe' : 'Add New Recipe'}</h2>
         <form onSubmit={handleSubmit}>

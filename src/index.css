@@ -165,6 +165,7 @@ body {
   margin-bottom: 2rem;
 }
 .recipe-count { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+.toolbar-actions { display: flex; gap: 0.5rem; }
 
 /* ── Buttons ── */
 .btn {
@@ -661,6 +662,89 @@ textarea.form-ctrl { resize: vertical; min-height: 100px; }
   transition: background 0.15s;
 }
 .photo-remove:hover { background: rgba(40, 24, 14, 0.85); }
+
+/* ── AI Suggest Page ── */
+.suggest-card {
+  max-width: 600px;
+  margin: 2rem auto;
+  background: var(--warm-white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 20px var(--shadow);
+}
+.suggest-back {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: 0;
+  margin-bottom: 1.75rem;
+  transition: color 0.15s;
+  display: block;
+}
+.suggest-back:hover { color: var(--coffee); }
+.suggest-header { text-align: center; margin-bottom: 2rem; }
+.suggest-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--caramel-lt), #F5DFA0);
+  border-radius: 14px;
+  color: var(--coffee);
+  margin-bottom: 1rem;
+}
+.suggest-title { font-size: 1.5rem; font-weight: normal; color: var(--espresso); margin-bottom: 0.5rem; }
+.suggest-sub { color: var(--muted); font-style: italic; font-size: 0.9rem; line-height: 1.6; }
+.suggest-input { resize: none; }
+.suggest-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+}
+.suggest-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+.suggest-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(253,246,236,0.4);
+  border-top-color: var(--cream);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+.suggest-loading-note {
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.8rem;
+  margin-top: 1rem;
+}
+
+/* ── Suggest nav button in header ── */
+.suggest-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(200, 145, 63, 0.18);
+  border: 1px solid rgba(200, 145, 63, 0.4);
+  color: var(--caramel-lt);
+  border-radius: 6px;
+  padding: 0.28rem 0.9rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.suggest-nav-btn:hover,
+.suggest-nav-btn.active { background: rgba(200, 145, 63, 0.35); color: #fff; }
 
 /* ── Confirm Delete Modal ── */
 .confirm-card { max-width: 420px; }

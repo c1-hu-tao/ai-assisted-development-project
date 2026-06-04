@@ -9,6 +9,7 @@ import CategorySidebar from './components/CategorySidebar';
 import IngredientFilter from './components/IngredientFilter';
 import RecipeForm from './components/RecipeForm';
 import AuthModal from './components/AuthModal';
+import AISuggestScreen from './components/AISuggestScreen';
 
 const FAV_KEY = (userId) => `recipe-favs-${userId ?? 'guest'}`;
 
@@ -38,6 +39,8 @@ export default function App() {
   const [isAdmin,             setIsAdmin]             = useState(false);
   const [showAuth,            setShowAuth]            = useState(false);
   const [favourites,          setFavourites]          = useState(() => loadFavourites(null));
+  const [page,                setPage]                = useState('recipes'); // 'recipes' | 'suggest'
+  const [suggestedRecipe,     setSuggestedRecipe]     = useState(null);
 
   // Track auth session and reload favourites when user changes
   useEffect(() => {
@@ -166,7 +169,7 @@ export default function App() {
     setEditingRecipe(recipe);
   };
 
-  const closeForm = () => { setShowForm(false); setEditingRecipe(null); };
+  const closeForm = () => { setShowForm(false); setEditingRecipe(null); setSuggestedRecipe(null); };
 
   const pickRandom = (cat) => {
     const pool = recipes.filter(r => r.category === cat);
@@ -224,33 +227,27 @@ export default function App() {
     return result;
   }, [recipes, selectedCat, selectedIngredients, recipeScores, favourites]);
 
-  const headerProps = { connected, user, onSignIn: () => setShowAuth(true) };
+  const handleSuggest = (recipeData) => {
+    setSuggestedRecipe(recipeData);
+    setPage('recipes');
+    setShowForm(true);
+  };
 
-  if (status === 'loading') return (
+  const headerProps = {
+    connected, user,
+    onSignIn: () => setShowAuth(true),
+  };
+
+  if (page === 'suggest') return (
     <>
       <AppHeader {...headerProps} />
-      <main className="main">
-        <div className="status-screen">
-          <div className="spinner" />
-          <span>Connecting to your recipe collection…</span>
-        </div>
-      </main>
-    </>
-  );
-
-  if (status === 'setup') return (
-    <><AppHeader {...headerProps} /><SetupScreen onRetry={retry} /></>
-  );
-
-  if (status === 'error') return (
-    <>
-      <AppHeader {...headerProps} />
-      <main className="main">
-        <div className="status-screen">
-          <p className="err-text">Connection error: {errMsg}</p>
-          <button className="btn btn-primary" onClick={retry}>Retry</button>
-        </div>
-      </main>
+      <AISuggestScreen
+        onSuggest={handleSuggest}
+        onBack={() => setPage('recipes')}
+        user={user}
+        onSignIn={() => setShowAuth(true)}
+      />
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </>
   );
 
@@ -282,9 +279,14 @@ export default function App() {
               {selectedCat === '__favourites__' ? ' favourited' : selectedCat ? ` in ${selectedCat}` : ' saved'}
               {selectedIngredients.length > 0 ? ` • ${selectedIngredients.length} ingredient${selectedIngredients.length === 1 ? '' : 's'}` : ''}
             </span>
-            <button className="btn btn-primary" onClick={handleAddClick}>
-              + Add Recipe
-            </button>
+            <div className="toolbar-actions">
+              <button className="btn btn-ghost" onClick={() => setPage('suggest')}>
+                ✦ Suggest Recipe
+              </button>
+              <button className="btn btn-primary" onClick={handleAddClick}>
+                + Add Recipe
+              </button>
+            </div>
           </div>
 
           {filteredRecipes.length === 0 ? (
@@ -315,7 +317,7 @@ export default function App() {
 
       {(showForm || editingRecipe) && (
         <RecipeForm
-          initialData={editingRecipe}
+          initialData={editingRecipe ?? suggestedRecipe}
           onSave={editingRecipe ? updateRecipe : addRecipe}
           onClose={closeForm}
           user={user}
