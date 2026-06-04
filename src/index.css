@@ -648,30 +648,34 @@ textarea.form-ctrl { resize: vertical; min-height: 100px; }
   .header-title { font-size: 2rem; }
   .main { padding: 1rem; }
   .app-body { flex-direction: column; padding: 1rem; gap: 1rem; }
+
   .sidebar {
     width: 100%;
     position: static;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.6rem 0.75rem;
     border-radius: 10px;
+    overflow-x: auto;
   }
-  .sidebar-heading { display: none; }
+  .sidebar-heading {
+    display: block;
+    padding: 0.7rem 1rem 0.5rem;
+  }
   .sidebar-item {
     border-left: none;
-    border-radius: 20px;
-    padding: 0.28rem 0.75rem;
-    font-size: 0.8rem;
-    border: 1.5px solid var(--border);
+    padding: 0.55rem 1rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border);
   }
+  .sidebar-item:last-of-type { border-bottom: none; }
   .sidebar-item.active {
-    background: var(--coffee);
-    color: var(--cream);
-    border-color: var(--coffee);
+    background: #F0E3D0;
+    border-left: 3px solid var(--caramel);
+    color: var(--coffee);
   }
-  .sidebar-item.active .sidebar-count { background: rgba(255,255,255,0.25); color: var(--cream); }
+  .sidebar-item.active .sidebar-count { background: var(--caramel); color: #fff; }
+
+  /* Always show shuffle button on touch devices */
+  .shuffle-btn { opacity: 1; }
+
   .recipe-grid { grid-template-columns: 1fr; }
   .ingredient-filter { border-top: none; padding: 0.5rem 0 0; margin-top: 0.5rem; }
 }
