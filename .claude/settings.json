@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$raw = $input | Out-String; if ($raw -imatch 'recipe|ingredient|(add|create|generate|make|build|save|new|write|insert).*(dish|meal|food|cook)') { @{ hookSpecificOutput = @{ hookEventName = 'UserPromptSubmit'; additionalContext = 'The user is creating a new recipe. Apply the ingredient-normalizer skill from .agents/skills/ingredient-normalizer/SKILL.md: strip all quantities, units, and prep notes from ingredient strings, then normalize each to its canonical plural form before storing or rendering.' } } | ConvertTo-Json -Compress } else { '{}' }",
+            "statusMessage": "Checking recipe context..."
+          }
+        ]
+      }
+    ]
+  }
+}

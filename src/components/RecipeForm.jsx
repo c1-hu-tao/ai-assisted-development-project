@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { normalizeIng, CATEGORIES } from '../utils/helpers';
 import { db } from '../lib/supabase';
+import { SparkleIcon } from './icons';
 
 export default function RecipeForm({ initialData, onSave, onClose, user }) {
   const isEdit = !!initialData?.id;
@@ -19,6 +20,10 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
   const [photoFile, setPhotoFile]       = useState(null);
   const [photoPreview, setPhotoPreview] = useState(initialData?.photo_url || null);
   const [uploading, setUploading]       = useState(false);
+  const [importing, setImporting]       = useState(false);
+  const [importText, setImportText]     = useState('');
+  const [importOpen, setImportOpen]     = useState(false);
+  const [importError, setImportError]   = useState('');
   const ingRef  = useRef(null);
   const fileRef = useRef(null);
 
@@ -34,6 +39,37 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
   const removeIng = (i) => {
     setIngredients(prev => prev.filter((_, j) => j !== i));
     setSearchTags(prev => prev.filter((_, j) => j !== i));
+  };
+
+  const handleImport = async () => {
+    if (!importText.trim()) return;
+    setImportError('');
+    setImporting(true);
+    try {
+      const { data, error: fnError } = await db.functions.invoke('import-recipe', {
+        body: { text: importText.trim() },
+      });
+      if (fnError) throw new Error(fnError.message);
+      if (data?.error) throw new Error(data.error);
+
+      if (data.title)        setTitle(data.title);
+      if (data.description)  setDesc(data.description);
+      if (data.category)     setCategory(data.category);
+      if (data.subcategory)  setSubcategory(data.subcategory);
+      if (data.instructions) setInstructions(data.instructions);
+      if (Array.isArray(data.ingredients)) {
+        setIngredients(data.ingredients);
+        setSearchTags(
+          Array.isArray(data.search_ingredients) ? data.search_ingredients : data.ingredients.map(normalizeIng)
+        );
+      }
+      setImportOpen(false);
+      setImportText('');
+    } catch (err) {
+      setImportError(err.message || 'Import failed. Please try again.');
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -88,6 +124,44 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
     <div className="overlay">
       <div className="form-card">
         <h2 className="form-heading">{isEdit ? 'Edit Recipe' : 'Add New Recipe'}</h2>
+
+        {!isEdit && (
+          <div className="import-panel">
+            {!importOpen ? (
+              <button type="button" className="btn btn-ghost import-trigger"
+                onClick={() => { setImportOpen(true); setImportError(''); }}>
+                <SparkleIcon /> Import from text
+              </button>
+            ) : (
+              <div className="import-box">
+                <p className="import-hint">Paste the full text of any recipe page below.</p>
+                <textarea
+                  className="form-ctrl import-textarea"
+                  rows={7}
+                  value={importText}
+                  onChange={e => setImportText(e.target.value)}
+                  placeholder="Paste recipe text here…"
+                  autoFocus
+                  disabled={importing}
+                />
+                {importError && <p className="auth-error">{importError}</p>}
+                <div className="import-actions">
+                  <button type="button" className="btn btn-ghost btn-sm"
+                    onClick={() => { setImportOpen(false); setImportText(''); setImportError(''); }}
+                    disabled={importing}>
+                    Cancel
+                  </button>
+                  <button type="button" className="btn btn-primary btn-sm"
+                    onClick={handleImport}
+                    disabled={importing || !importText.trim()}>
+                    {importing ? <><span className="suggest-spinner" /> Importing…</> : 'Import'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
 
           {/* Photo */}

@@ -783,6 +783,21 @@ textarea.form-ctrl { resize: vertical; min-height: 100px; }
   justify-content: center;
   gap: 1.25rem;
   margin-bottom: 1.75rem;
+  flex-wrap: wrap;
+}
+.planner-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.5rem;
+  border: 1px dashed var(--latte);
+}
+.planner-ai-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.planner-plan-error {
+  text-align: center;
+  color: #b94a48;
+  font-size: 0.82rem;
+  margin: -1rem 0 1rem;
 }
 .planner-week-label {
   font-size: 1rem;
@@ -993,6 +1008,48 @@ textarea.form-ctrl { resize: vertical; min-height: 100px; }
   font-size: 1.1rem;
   font-weight: normal;
   color: var(--espresso);
+}
+
+/* ── Import from text ── */
+.import-panel {
+  margin-bottom: 1.25rem;
+}
+.import-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--mocha);
+  border: 1px dashed var(--latte);
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  width: 100%;
+  justify-content: center;
+}
+.import-trigger:hover { background: var(--cream); }
+.import-box {
+  border: 1px solid var(--latte);
+  border-radius: 10px;
+  padding: 1rem;
+  background: var(--cream);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.import-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0;
+}
+.import-textarea {
+  resize: vertical;
+  font-size: 0.82rem;
+  min-height: 120px;
+}
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 /* ── AI Suggest Page ── */

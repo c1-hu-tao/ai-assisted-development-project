@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { db } from '../lib/supabase';
 import MealSlotPicker from './MealSlotPicker';
 import RecipeModal from './RecipeModal';
+import { SparkleIcon } from './icons';
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MEALS = ['Breakfast','Lunch','Dinner','Snack'];
@@ -35,8 +36,10 @@ export default function MealPlannerPage({ user, recipes, onAddRecipe, onSignIn }
   const [weekStart,   setWeekStart]   = useState(getWeekStart);
   const [planMap,     setPlanMap]     = useState({});
   const [loading,     setLoading]     = useState(false);
-  const [activeSlot,  setActiveSlot]  = useState(null); // { day, mealType }
+  const [activeSlot,    setActiveSlot]    = useState(null); // { day, mealType }
   const [viewingRecipe, setViewingRecipe] = useState(null);
+  const [planning,      setPlanning]      = useState(false);
+  const [planError,     setPlanError]     = useState('');
 
   const slotKey = (day, mealType) => `${day}-${mealType}`;
 
@@ -89,6 +92,53 @@ export default function MealPlannerPage({ user, recipes, onAddRecipe, onSignIn }
     setActiveSlot(null);
   };
 
+  const planDinners = async () => {
+    setPlanError('');
+    setPlanning(true);
+    try {
+      // Build existingDinners map: dayIndex → recipe_id
+      const existingDinners = {};
+      DAYS.forEach((_, i) => {
+        const entry = planMap[slotKey(i, 'Dinner')];
+        if (entry?.recipe_id) existingDinners[i] = entry.recipe_id;
+      });
+
+      const MEAL_CATEGORIES = new Set([
+        'Meat & Poultry', 'Fish & Seafood', 'Vegetarian', 'Vegan', 'Cuisine',
+      ]);
+
+      const payload = {
+        recipes: recipes.filter(r => MEAL_CATEGORIES.has(r.category)).map(r => ({
+          id: r.id,
+          title: r.title,
+          category: r.category,
+          subcategory: r.subcategory || '',
+          search_ingredients: Array.isArray(r.search_ingredients) ? r.search_ingredients : [],
+        })),
+        existingDinners,
+        targetDays: [0, 1, 2, 3, 4, 5, 6], // Mon–Sun
+      };
+
+      const { data, error: fnError } = await db.functions.invoke('plan-meals', { body: payload });
+      if (fnError) throw new Error(data?.error ?? fnError.message);
+      if (data?.error) throw new Error(data.error);
+      if (!Array.isArray(data) || data.length === 0) {
+        setPlanError('No suggestions returned — your dinner slots may already be full.');
+        return;
+      }
+
+      const recipeMap = Object.fromEntries(recipes.map(r => [r.id, r]));
+      for (const { day, recipe_id } of data) {
+        const recipe = recipeMap[recipe_id];
+        if (recipe) await assignRecipe(day, 'Dinner', recipe);
+      }
+    } catch (err) {
+      setPlanError(err.message || 'Planning failed. Please try again.');
+    } finally {
+      setPlanning(false);
+    }
+  };
+
   if (!user) return (
     <main className="main">
       <div className="status-screen">
@@ -105,7 +155,20 @@ export default function MealPlannerPage({ user, recipes, onAddRecipe, onSignIn }
         <button className="btn btn-ghost btn-sm" onClick={() => setWeekStart(w => addWeeks(w, -1))}>← Prev</button>
         <span className="planner-week-label">{formatWeekLabel(weekStart)}</span>
         <button className="btn btn-ghost btn-sm" onClick={() => setWeekStart(w => addWeeks(w, 1))}>Next →</button>
+        <button
+          className="btn btn-ghost btn-sm planner-ai-btn"
+          onClick={planDinners}
+          disabled={planning || recipes.length === 0}
+          title="Plan 5 dinners using AI"
+        >
+          {planning
+            ? <><span className="suggest-spinner" /> Planning…</>
+            : <><SparkleIcon size={12} /> Plan my dinners</>}
+        </button>
       </div>
+      {planError && (
+        <p className="planner-plan-error">{planError}</p>
+      )}
 
       {loading ? (
         <div className="status-screen" style={{ minHeight: '30vh' }}>
