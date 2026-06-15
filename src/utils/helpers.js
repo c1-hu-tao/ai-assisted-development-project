@@ -59,17 +59,33 @@ export function isTableMissing(err) {
 }
 
 export function normalizeIng(raw) {
-  let s = raw.toLowerCase().trim();
+  // Replace unicode fractions first
+  let s = raw.replace(/[½¼¾⅓⅔⅛⅜⅝⅞]/g, m =>
+    ({ '½':'1/2','¼':'1/4','¾':'3/4','⅓':'1/3','⅔':'2/3','⅛':'1/8','⅜':'3/8','⅝':'5/8','⅞':'7/8' }[m] ?? m)
+  ).toLowerCase().trim();
+
+  const UNIT = '(?:cups?|tbsps?|tbs|teaspoons?|tsps?|tablespoons?|fluid\\s+oz|fl\\.?\\s*oz\\.?|grams?|kg|mg|oz\\.?|ounces?|ml|milliliters?|liters?|litres?|lbs?\\.?|pounds?|dl|cl|cloves?|pinch(?:es)?|handful(?:s)?|bunch(?:es)?|head(?:s)?|large|medium|small|cans?|packages?|pkgs?|packets?|slices?|pieces?|strips?|sprigs?|stalks?|dashes?|drops?|g(?=\\s|$))';
+
   for (let pass = 0; pass < 3; pass++) {
     s = s
-      .replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞.,/×x+\-]+/, '')
-      .replace(/^(a|an)\s+/, '')
-      .replace(/^(cups?|tbsps?|tsps?|tablespoons?|teaspoons?|grams?|kg|oz|ounces?|ml|liters?|lbs?|pounds?|cloves?|pinch|handful|bunch|large|medium|small|cans?|packages?|packets?|slices?|pieces?|strips?|sprigs?|dashes?|drops?)\s+(of\s+)?/i, '')
+      // strip leading mixed number, fraction, or decimal (e.g. "1 1/2", "3/4", "2.5", "2-3")
+      .replace(/^\d+\s+\d+\/\d+/, '')
+      .replace(/^\d+\/\d+(\s+to\s+\d+\/?\d*)?/, '')
+      .replace(/^\d+(\.\d+)?(\s*[-–]\s*\d+(\.\d+)?)?/, '')
+      .trim()
+      // strip attached metric abbreviation left after number strip (e.g. "ml", "g", "kg")
+      .replace(/^(ml|g|kg|mg|dl|cl)(?=\s|$)/i, '')
+      .trim()
+      // strip leading unit word
+      .replace(new RegExp(`^${UNIT}\\b\\.?\\s*(?:of\\s+)?`, 'i'), '')
+      .replace(/^(a|an|some)\s+/, '')
       .trim();
   }
+
   return s
     .replace(/\s*\([^)]*\)/g, '')
-    .replace(/,\s*(optional|to taste|room temperature|softened|diced|chopped|minced|sliced|grated|shredded|crumbled|peeled|fresh|dried|frozen|cooked|uncooked|cooled|melted|beaten|sifted|divided|roughly|finely).*$/i, '')
+    .replace(/^(dried|fresh|frozen|whole|raw|ground|powdered|crushed|canned|bottled|cooked|toasted|roasted)\s+/i, '')
+    .replace(/,\s*(optional|to taste|room temperature|softened|diced|chopped|minced|sliced|grated|shredded|crumbled|peeled|fresh|dried|frozen|cooked|uncooked|cooled|melted|beaten|sifted|divided|roughly|finely|thinly|very\s+thinly).*$/i, '')
     .replace(/,.*$/, '')
     .trim();
 }

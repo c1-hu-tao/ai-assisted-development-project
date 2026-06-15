@@ -237,7 +237,15 @@ export default function RecipeForm({ initialData, onSave, onClose, user }) {
             <div className="ing-builder">
               {ingredients.map((ing, i) => (
                 <div key={i} className="ing-chip">
-                  <span className="ing-chip-label" title={ing}>{ing}</span>
+                  <input
+                    className="ing-chip-label"
+                    value={ing}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setIngredients(prev => prev.map((x, j) => j === i ? v : x));
+                    }}
+                    title={ing}
+                  />
                   <input
                     className="ing-search-tag"
                     value={searchTags[i] || ''}
